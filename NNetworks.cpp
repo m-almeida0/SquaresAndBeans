@@ -328,10 +328,9 @@ void Network::randomize(int seed){
 }
 void Network::killNetwork(){
     if(this->layers == NULL || this->n_neurons_per_layer == NULL) {
-		printf("entrou no return correto\n");
         return;
 	}
-	//printf("deu merda\n");
+	//printf("entrou ");
     for(int i = 0; i < this->n_layers; i++){
         for(int j = 0; j < this->n_neurons_per_layer[i]; j++)
             this->layers[i][j].freeNeuron();
@@ -341,6 +340,7 @@ void Network::killNetwork(){
     this->layers = NULL;
     free(this->n_neurons_per_layer);
     this->n_neurons_per_layer = NULL;
+    //printf("e saiu do kill network\n");
 }
 
 //utility functions. Might be related to objects

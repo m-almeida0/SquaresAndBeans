@@ -1,7 +1,4 @@
-all: main
-
-main: NNetworks.o
-	g++ testMain.cpp NNetworks.o -o main
+all: game
 
 game: NNetworks.o
 	g++ squares.cpp NNetworks.o -o squares -lglut -lGLU -lGL -Wall
@@ -11,7 +8,8 @@ NNetworks.o:
 
 clean:
 	rm *.o
+	rm squares
 	clear
 
 run:
-	./main
+	./squares

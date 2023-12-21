@@ -10,11 +10,10 @@
 #include <cstdio>
 #include<iostream>
 #include <sstream>
+#include <unistd.h>
 
 #define windowWidth 800
 #define windowHeight 800
-#define DEFAULT_LEN 0.03
-#define gridSize 50
 
 #define STAY 0
 #define UP 1
@@ -32,6 +31,9 @@ typedef struct _agent{
     Network network;
   	int survival_time;
   	bool alive;
+	int prev_pos;
+	int new_pos;
+	int n_dodges;
 }agent;
 agent*population;
 int alive_pop;
@@ -50,6 +52,7 @@ double boundedRand(int seed, double min, double max){
 
 void draw();
 void simulation(int);
+int gridSize;
 int pop_size;
 double bean_delay;
 int max_beans;
@@ -59,21 +62,39 @@ int generation_counter = 0;
 int generation_duration;
 int n_generations = 0;
 int n_best = 0; // number of elements to use on breedNBest
-std::vector<std::pair<int, int>> pop_outputs;
+std::vector<std::pair<int, double>> pop_outputs;
 agent bestOfAll;
+
+int mode;
+int breeding;
 
 void clearGrid();
 
 int window;
-int max_generations = 15;
-int best_of_n[20];
-int alive_to_the_end[20];
+int max_generations;
+double *best_of_n;
+int *alive_to_the_end;
 bool running;
+int n_inputs = 11, n_layers = 2, n_per_l[2] = {5, 5};
+
+int slow_down = 10;
+void keyboard(unsigned char key, int x, int y);
 int main(int argc, char*argv[]){
     glutInit(&argc, argv);
     std::srand(getCurrentTimeInSeconds());
-	
+
 	bestOfAll.survival_time = -1;
+
+	std::cout<<"insira o tamanho do grid ";
+	std::cin>>gridSize;
+	std::cout<<"insira o número de indivíduos, a duração de uma geração em frames e o numero de geracoes (nessa ordem, separado por epaços)\n";
+	std::cin>>pop_size>>generation_duration>>max_generations;
+	std::cout<<"insira o número de raios que você quer atingindo a população, e o número de frames até um deles matar\n";
+	std::cin>>max_beans>>bean_delay;
+	std::cout<<"insira o modo: AVERAGE = 0, SPLICING_HALF = 1, SPLICING_RAND = 2\n";
+	std::cin>>mode;
+	//std::cout<<"por fim, insira o modo de cruzamento: N Best = 0, Walrus = 1\n";
+	//std::cin>>breeding;
 
     grid = (int**) malloc(gridSize*sizeof(int*));
     for(int i = 0; i < gridSize; i++){
@@ -81,11 +102,11 @@ int main(int argc, char*argv[]){
         for(int j = 0; j < gridSize; j++)
             grid[i][j] = 0;
     }
-    pop_size = 20; generation_duration = 80; alive_pop = pop_size; n_best = pop_size/4;
-	bean_delay = 6; max_beans = 10;
-    population = (agent*) malloc(pop_size*sizeof(agent));
-    int n_inputs = 11, n_layers = 1, n_per_l[1] = {5},
-  	temp_x, temp_y;
+    alive_pop = pop_size; n_best = pop_size/4;
+	population = (agent*) malloc(pop_size*sizeof(agent));
+	best_of_n = (double*) malloc(max_generations*sizeof(double));
+	alive_to_the_end = (int*) malloc(max_generations*sizeof(int));
+  	int temp_x, temp_y;
   	for(int i = 0; i < pop_size; i++){
       	do{
         	temp_x = rand()%gridSize; temp_y = rand()%gridSize;
@@ -96,6 +117,8 @@ int main(int argc, char*argv[]){
       	population[i].network = Network(n_layers, n_inputs, n_per_l, true, getCurrentTimeInSeconds());
         population[i].alive = true;
 		population[i].survival_time = 0;
+		population[i].prev_pos = 0;
+		population[i].n_dodges = 0;
     }
     beans = (bean*) malloc(max_beans*sizeof(bean));
 
@@ -103,22 +126,47 @@ int main(int argc, char*argv[]){
     glutInitDisplayMode(GLUT_RGBA);
     glutInitWindowSize(windowWidth, windowHeight);
     glutInitWindowPosition(120, 120);
-    window = glutCreateWindow("nome da janela");
+    window = glutCreateWindow("sumulacao");
     glClearColor(0, 0, 0, 1.0);
     glutDisplayFunc(draw);
     glutTimerFunc(0, simulation, 0);
+	glutKeyboardFunc(keyboard);
     glutMainLoop();
 
+	printf("saiu do game\n");
     free(beans);
+	printf("deu free no beans\n");
     for(int i = 0; i < pop_size; i++){
         population[i].network.killNetwork();
     }
   	free(population);
+	printf("deu free na populacao\n");
   	for(int i = 0; i < gridSize; i++){
         free(grid[i]);
     }
   	free(grid);
+	printf("deu free no grid\n");
+	free(best_of_n);
+	free(alive_to_the_end);
     return 0;
+}
+
+void keyboard(unsigned char key, int x, int y){
+	switch (key)
+	{
+	case 's':
+		if(slow_down > 10)
+			slow_down = 10;
+		else
+			slow_down++;
+		break;
+	
+	case 'f':
+		if(slow_down < 1)
+			slow_down = 1;
+		else
+			slow_down++;
+	}
 }
 
 void checkBest() {
@@ -126,19 +174,19 @@ void checkBest() {
 
   	for (int i = 0; i < pop_size; i++) {
       	//checar se deu merda, talvez seja necessŕio usar "at"
-		pop_outputs.push_back(std::make_pair(i, population[i].survival_time));
+		pop_outputs.push_back(std::make_pair(i, (double) (population[i].survival_time * population[i].n_dodges) / (double) generation_duration));
 		//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
     }
   
   	std::sort(pop_outputs.begin(), pop_outputs.end(), [](const auto& lhs, const auto& rhs) {return lhs.second > rhs.second;});
 
-	printf("best survival time in this generation: %d\n", pop_outputs.at(0).second);
+	printf("best of this generation: survival time = %d, n_dodges = %d, pontuation = %lf \n", population[pop_outputs.at(0).first].survival_time, population[pop_outputs.at(0).first].n_dodges, pop_outputs.at(0).second);
 	best_of_n[n_generations-1] = pop_outputs.at(0).second;
 	alive_to_the_end[n_generations-1] = alive_pop;
 
-	printf("best of all survival time: %d\n", bestOfAll.survival_time);
+	//printf("best of all: survival time: %d, n dodges: %d\n", bestOfAll.survival_time);
   	
-	if (bestOfAll.survival_time < pop_outputs.at(0).second) {
+	if (((double) (bestOfAll.survival_time * bestOfAll.n_dodges) / (double) generation_duration) < pop_outputs.at(0).second) {
 		//printf("Entrou best of all\n");
 		bestOfAll = population[pop_outputs.at(0).first];
 		//printf("popoutputs: %d\n", pop_outputs.at(0).first);
@@ -150,15 +198,17 @@ void checkBest() {
 }
 
 void nBestBreed() {
-	printf("Entrou em nBestBreed\n");
+	//printf("Entrou em nBestBreed\n");
   	agent *new_population = (agent*) malloc(pop_size*sizeof(agent));
 
 	clearGrid();
 
+	double mutation_chance = 0.45 * ((double) alive_pop / (double) pop_size) + 0.05, mutation_range;
+
 	int counter = 0;
 	//printf("n best: %d\n", n_best);
     for (int i = 0; i < pop_size; i++) {
-		printf("counter: %d\n", counter);
+		//printf("counter: %d\n", counter);
         // Add the result to the new list
 		int temp_x; int temp_y;
 		do{
@@ -172,13 +222,16 @@ void nBestBreed() {
 			int mother = (mother == n_best - 1) ? mother - 1 : mother + 1;
 		}
 
+		mutation_range = 0.5 * ((double) (pop_outputs.at(0).second+pop_outputs.at(i).second) / (double) (2*generation_duration)) + 0.1;
+
 		new_population[counter].line = temp_x;
 		new_population[counter].column = temp_y;
 		grid[temp_x][temp_y] = -1;
-        new_population[counter].network = reproduce(population[pop_outputs.at(father).first].network, population[pop_outputs.at(mother).first].network, NEURONS, SPLICING_RAND, true, 666, 0.6, 0.3, NULL);
+        new_population[counter].network = reproduce(population[pop_outputs.at(father).first].network, population[pop_outputs.at(mother).first].network, NEURONS, mode, true, (int) getCurrentTimeInSeconds(), mutation_range, mutation_chance, NULL);
 		new_population[counter].alive = true;
 		new_population[counter].survival_time = 0;
-		printf("gerando individuo %d\n", counter);
+		new_population[counter].n_dodges = 0;
+		//printf("gerando individuo %d\n", counter);
 		counter++;
     }
 
@@ -202,38 +255,40 @@ void walrusBreed() {
 
 	clearGrid();
 
-	int counter = 0;
-	for (int i = 1; i < pop_size; i++) {
-		int temp_x; int temp_y;
-		do{
-			temp_x = rand()%gridSize; temp_y = rand()%gridSize;
-		}while(grid[temp_x][temp_y] == -1);
+	double mutation_chance = 0.45 * ((double) alive_pop / (double) pop_size) + 0.05, mutation_range;
 
-		new_population[counter].line = temp_x;
-		new_population[counter].column = temp_y;
-		grid[temp_x][temp_y] = -1;
-        new_population[counter].network = reproduce(population[pop_outputs.at(0).first].network, population[pop_outputs.at(i).first].network, NEURONS, SPLICING_RAND, true, 666, 0.6, 0.3, NULL);
-		new_population[counter].alive = true;
-		new_population[counter].survival_time = 0;
-		printf("gerando individuo %d\n", counter);
+	int counter = 0;
+	for (int i = 0; i < pop_size; i++) {
+		if (population[pop_outputs.at(i).first].n_dodges > 0) {
+			int temp_x; int temp_y;
+			do{
+				temp_x = rand()%gridSize; temp_y = rand()%gridSize;
+			}while(grid[temp_x][temp_y] == -1);
+			mutation_range = 0.5 * ((double) (pop_outputs.at(0).second+pop_outputs.at(i).second) / (double) (2*generation_duration)) + 0.1;
+			new_population[counter].line = temp_x;
+			new_population[counter].column = temp_y;
+			grid[temp_x][temp_y] = -1;
+			new_population[counter].network = reproduce(population[pop_outputs.at(0).first].network, population[pop_outputs.at(i).first].network, NEURONS, mode, true, (int) getCurrentTimeInSeconds(), mutation_range, mutation_chance, NULL);
+			new_population[counter].alive = true;
+			new_population[counter].survival_time = 0;
+			new_population[counter].prev_pos = 0;
+			new_population[counter].n_dodges = 0;
+		} else {
+			int temp_x; int temp_y;
+			do{
+				temp_x = rand()%gridSize; temp_y = rand()%gridSize;
+			}while(grid[temp_x][temp_y] == -1);
+			new_population[counter].line = temp_x;
+			new_population[counter].column = temp_y;
+			grid[temp_x][temp_y] = -1;
+			new_population[counter].network = Network(n_layers, n_inputs, n_per_l, true, getCurrentTimeInSeconds());
+			new_population[counter].alive = true;
+			new_population[counter].survival_time = 0;
+			new_population[counter].prev_pos = 0;
+			new_population[counter].n_dodges = 0;
+		}
 		counter++;
 	}
-	
-	// because the previous loop will generate pop_size - 1 elements, we will
-	// create the remaining element by breeding the second and third agents
-	int temp_x; int temp_y;
-	do{
-		temp_x = rand()%gridSize; temp_y = rand()%gridSize;
-	}while(grid[temp_x][temp_y] == -1);
-
-	new_population[counter].line = temp_x;
-	new_population[counter].column = temp_y;
-	grid[temp_x][temp_y] = -1;
-    new_population[counter].network = reproduce(population[pop_outputs.at(1).first].network, population[pop_outputs.at(2).first].network, NEURONS, SPLICING_RAND, true, 666, 0.6, 0.3, NULL);
-	new_population[counter].alive = true;
-	new_population[counter].survival_time = 0;
-	printf("gerando individuo %d\n", counter);
-	counter++;
 
 	alive_pop = counter;
 
@@ -241,7 +296,6 @@ void walrusBreed() {
 	for (int i = 0; i < pop_size; i++) {
 		population[i].network.killNetwork();
 	}
-
 	free(population);
 
 	population = new_population;
@@ -310,7 +364,7 @@ void updatePopulation(){
           	population[i].alive = false;
          	removeFromGrid(population[i]);
             alive_pop --;
-            printf("individuo %d morreu, alive_pop = %d\n", i, alive_pop);
+            //printf("individuo %d morreu, alive_pop = %d\n", i, alive_pop);
         }
   }
 }
@@ -335,7 +389,7 @@ void drawBean(bean a_bean){
 }
 
 double padding = 0;//0.4;
-void drawAgent(agent an_agent){
+void drawAgent(agent an_agent, int i){
     /*TODO:
         1 -fix padding
     */
@@ -344,13 +398,22 @@ void drawAgent(agent an_agent){
   	x2 = x1 + (2/(double) gridSize)-padding_absolute,
   	y1 = -1+2*(double)an_agent.line/(double) gridSize+padding_absolute,
   	y2 = y1+(2/(double) gridSize)-padding_absolute;
-  	glColor3f(0, 0, 0.8);
+	if(an_agent.alive)
+  		glColor3f(0, 0, 0.8);
+	else
+		glColor3f(0.6, 0, 0);
     glBegin(GL_POLYGON);
     glVertex2d(x1, y1);
     glVertex2d(x1, y2);
     glVertex2d(x2, y2);
     glVertex2d(x2, y1);
     glEnd();
+
+	glColor3f(1, 0, 1);
+	double x = x1+((double) gridSize), y = y1+((double) gridSize);
+	glRasterPos2f(x, y);
+	char c = '0'+i;
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
 }
 
 void draw(){
@@ -358,23 +421,42 @@ void draw(){
 	glClear(GL_COLOR_BUFFER_BIT);
 	if(running){
 		for(int i = 0; i < pop_size; i++){
-			if(population[i].alive){
-				drawAgent(population[i]);
-			}
+			//if(population[i].alive){
+			drawAgent(population[i], i);
+			//}
 		}
 		for(int i = 0; i < n_beans; i++)
 			drawBean(beans[i]);
-	}else{
-		glColor3f(1, 1, 0);
+		glColor3f(0.6, 0.6, 1);
 		double x = -0.9, y = 0.9;
-		for(int i = 0; i < 10; i++){
+		glRasterPos2f(x, y);
+		std::string string = "generation: "+std::to_string(n_generations)+" alive: "+std::to_string(alive_pop);
+		for (char c : string) {
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+		}
+	}else{
+		int min, max;
+		if(max_generations <= 20){
+			min = 0;
+			max = max_generations;
+		}else{
+			min = max_generations - 20;
+			max = max_generations;
+		}
+		glColor3f(0.6, 0.6, 1);
+		double x = -0.9, y = 0.9;
+		for(int i = min; i < max; i++){
 			glRasterPos2f(x, y);
-			std::string end_message = "in generation "+std::to_string(i)+" best is "+std::to_string(best_of_n[i])+" and "+std::to_string(alive_to_the_end[i])+"survived to the end";
+			std::string end_message = "in generation "+std::to_string(i)+" best is "+std::to_string(best_of_n[i])+" and "+std::to_string(alive_to_the_end[i])+" survived to the end";
 			for (char c : end_message) {
 				glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
 			}
 			y -=0.08;
 		}
+		for(int i = 0; i < max_generations; i++){
+			std::cout<<i<<","<<best_of_n[i]<<"\n";
+		}
+		sleep(10000);
 	}
 	glutSwapBuffers();
 }
@@ -407,16 +489,6 @@ void getGridData(double*destiny, int i_agent, int j_agent){
 
 void simulation(int){
 	if(running){
-		if(n_generations > max_generations){
-			printf("saiu do loop de animacao\n");
-			for(int i = 0; i < max_generations; i++){
-				printf("melhor da geracao %d: %d\n", i, best_of_n[i]);
-			}
-			printf("melhor global: %d\n", bestOfAll.survival_time);
-			glutPostRedisplay();
-			glutTimerFunc(1000/60, simulation, 0);
-		}
-
 		clearGrid();
 		if(n_beans < max_beans){
 			beans[n_beans] = {bool(rand()%2), rand()%gridSize, 0};
@@ -436,11 +508,12 @@ void simulation(int){
 		double environment_data[11];
 		for(int i = 0; i < pop_size; i++){
 			if(population[i].alive){
-				printf("%d esta vivo. Em [%d, %d]\n", i, population[i].line, population[i].column);
+				//printf("%d esta vivo. Em [%d, %d]\n", i, population[i].line, population[i].column);
 				getGridData(environment_data, population[i].line, population[i].column);
+				//printf("o agente %d esta %d e ve na sua posicao %d\n", i, population[i].alive, (int)environment_data[5]);
 				//printf("passou do getGridData\n");
 				decision = population[i].network.runSoftmax(environment_data, 0);
-				printf("\npassou da tomada de decisao, indo %d - %s\n",decision, strings[decision]);
+				//printf("\npassou da tomada de decisao, indo %d - %s\n",decision, strings[decision]);
 				switch(decision){
 					case UP:
 						new_line = population[i].line+1;
@@ -477,12 +550,16 @@ void simulation(int){
 				}
 				//printf("passou do switch. novas coordenadas sao [%d, %d], com valor \n", new_line, new_column);
 				if(grid[new_line][new_column] != -1){
+					population[i].prev_pos = grid[population[i].line][population[i].column];
 					//printf("entrou no if\n");
 					removeFromGrid(population[i]);
 					//printf("foi tirado do grid\n");
 					population[i].line = new_line;
 					population[i].column = new_column;
+					population[i].new_pos = grid[new_line][new_column];
 					updateGrid(population[i]);
+					if(population[i].prev_pos > population[i].new_pos)
+						population[i].n_dodges++;
 					//printf("nova posicao [%d, %d] registrada no grid\n", population[i].line, population[i].column);
 				}
 
@@ -490,24 +567,26 @@ void simulation(int){
 			}
 		}
 
-		printf("n generation: %d generation counter = %d pop_alive = %d\n", n_generations,generation_counter, alive_pop);
+		//printf("n generation: %d generation counter = %d pop_alive = %d\n", n_generations,generation_counter, alive_pop);
 		//printGrid();
 
 		if(generation_counter >= generation_duration || alive_pop == 0) {
 			//printf("Entrou no if generation\n");
 			n_generations++;
 			checkBest();
-			//nBestBreed();
-			walrusBreed();
-			generation_counter = 0;
-			n_beans = 0;
 			if(n_generations > max_generations)
 				running = false;
+			else{
+				//nBestBreed();
+				walrusBreed();
+				generation_counter = 0;
+				n_beans = 0;
+			}
 		}
 
 		generation_counter++;
 	}
 	
     glutPostRedisplay();
-    glutTimerFunc(1000/60, simulation, 0);
+    glutTimerFunc(slow_down*10/60, simulation, 0);
 }

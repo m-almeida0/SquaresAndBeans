@@ -20,10 +20,11 @@ class Neuron{
         double*weights;
         double last_output;
         double midpoint;
-        //TODO: funcao de ativacao
+        //TODO: funcao de ativacao como parametro
     public:
         bool sigmoid;
         //bool hyperTan;
+        //TODO: implementar bounds como default
         Neuron();
         Neuron(int n_factors, int layer);
         Neuron(int n_factors, int layer, double*weights, bool sigmoid, double midpoint);
@@ -47,6 +48,7 @@ class Neuron{
 
 class Network{
     private:
+        //TODO: implementar tudo com vector e parar de bater cabeca com pointer
         Neuron**layers;
         int n_layers;
         int*n_neurons_per_layer;
@@ -67,8 +69,8 @@ class Network{
         int softmaxLayer(double*input, int layer);
         void randomize(int seed);
         void randomize(int seed, double range);
-        //void mutate(double mutationRate, double mutation_range);
-        //void printNetwork();
+        //TODO: implementar reproducao assexuada
+        //TODO: melhorar a mutacao implementando mutacao padrao
         void killNetwork();
 };
 
