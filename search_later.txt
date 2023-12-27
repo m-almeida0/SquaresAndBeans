@@ -1,3 +1,0 @@
-ou perguntar pro bernardo
-1 - como infernos ele tá evitando referências circulares?
-2 - o que é vecotrof32
