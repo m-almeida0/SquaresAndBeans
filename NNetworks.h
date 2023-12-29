@@ -17,30 +17,32 @@ class Neuron{
     private:
         int n_factors;
         unsigned short int layer;
-        double*weights;
-        double last_output;
-        double midpoint;
+        float*weights;
+        float last_output;
+        float midpoint;
+        float default_mutation;
         //TODO: funcao de ativacao como parametro
     public:
         bool sigmoid;
         //bool hyperTan;
-        //TODO: implementar bounds como default
         Neuron();
         Neuron(int n_factors, int layer);
-        Neuron(int n_factors, int layer, double*weights, bool sigmoid, double midpoint);
-        Neuron(int n_factors, int layer, bool rand, int seed, bool sigmoid, double midpoint);
-        void setWeights(double*new_weights);
+        Neuron(int n_factors, int layer, float*weights, bool sigmoid, float midpoint);
+        Neuron(int n_factors, int layer, bool rand, int seed, bool sigmoid, float midpoint);
+        void setDefaultMutation(float newMutation);
+        void setWeights(float*new_weights);
         int getNFactors();
         int getLayer();
-        double getFactor(int index);
-        double getLastResult();
-        double*copyFactors();
-        double output(double*inputs);
+        float getFactor(int index);
+        float getLastResult();
+        float*copyFactors();
+        float output(float*inputs);
         void randomize(int seed);
-        void randomize(int seed, double*ranges);
-        void randomize(int seed, double range);
-        void mutate(double mutationRange, int seed);
-        void mutate(double mutationRange, int seed, bool*values_to_mutate);
+        void randomize(int seed, float*ranges);
+        void randomize(int seed, float range);
+        void mutate(float mutationRange, int seed);
+        void mutate(float mutation_chance, int seed, bool trash);
+        void mutate(float mutationRange, int seed, bool*values_to_mutate);
         void copyNeuron(Neuron new_neuron);
         void printNeuron();
         void freeNeuron();
@@ -63,22 +65,23 @@ class Network{
         int NNeuronsInLayerN(int layer);
         void copyNeuron(int i, int j, Neuron new_neuron);
         void copyNetwork(Network &original);
-        double* runNetwork(double*input);
-        double* runNetwork(double*input, bool softmax);
-        int runSoftmax(double*input, int default_decision);
-        int softmaxLayer(double*input, int layer);
+        float* runNetwork(float*input);
+        float* runNetwork(float*input, bool softmax);
+        int runSoftmax(float*input, int default_decision);
+        int runSoftmax(float*input);
+        int softmaxLayer(float*input, int layer);
         void randomize(int seed);
-        void randomize(int seed, double range);
+        void randomize(int seed, float range);
         //TODO: implementar reproducao assexuada
         //TODO: melhorar a mutacao implementando mutacao padrao
         void killNetwork();
 };
 
-Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate, int seed, double mutation_range, double mutation_chance, bool*values_to_mutate);
+Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate, int seed, float mutation_range, float mutation_chance);
 Network reproduce(Network p1, Network P2, int chromosome, int mode);
 Network reproduceAndKillParents(Network *P1, Network *P2, int which, int chromosome, int mode);
-Network reproduceAndKillParents(Network *P1, Network *P2, int which, int chromosome, int mode, bool mutate, int seed, double mutation_range, double mutation_chance, bool*values_to_mutate);
-double getCurrentTimeInSeconds();
+Network reproduceAndKillParents(Network *P1, Network *P2, int which, int chromosome, int mode, bool mutate, int seed, float mutation_range, float mutation_chance, bool*values_to_mutate);
+float getCurrentTimeInSeconds();
 //Network copyNetwork(Network original);
 
 #endif

@@ -5,7 +5,7 @@
 #include <cmath>
 #include<chrono>
 
-double* copy(double*origin, int size);
+float* copy(float*origin, int size);
 
 //neuron functions
 Neuron::Neuron(){
@@ -16,29 +16,35 @@ Neuron::Neuron(){
 }
 Neuron::Neuron(int n_factors, int layer){
     this->n_factors = n_factors;
-    this->weights = (double*) malloc(n_factors*sizeof(double));
+    this->weights = (float*) malloc(n_factors*sizeof(float));
     this->layer = layer;
     this->sigmoid = true;
     this->midpoint = 0;
+    this->default_mutation = 0.05;
 }
-Neuron::Neuron(int n_factors, int layer, double*weights, bool sigmoid, double midpoint){
+Neuron::Neuron(int n_factors, int layer, float*weights, bool sigmoid, float midpoint){
     this->n_factors = n_factors;
-    this->weights = (double*) malloc(n_factors*sizeof(double));
+    this->weights = (float*) malloc(n_factors*sizeof(float));
     this->layer = layer;
     this->setWeights(weights);
     this->sigmoid = sigmoid;
     this->midpoint = midpoint;
+    this->default_mutation = 0.05;
 }
-Neuron::Neuron(int n_factors, int layer, bool rand, int seed, bool sigmoid, double midpoint){
+Neuron::Neuron(int n_factors, int layer, bool rand, int seed, bool sigmoid, float midpoint){
     this->n_factors = n_factors;
-    this->weights = (double*) malloc(n_factors*sizeof(double));
+    this->weights = (float*) malloc(n_factors*sizeof(float));
     this->layer = layer;
     if(rand)
         this->randomize(seed);
     this->sigmoid = sigmoid;
     this->midpoint = midpoint;
+    this->default_mutation = 0.05;
 }
-void Neuron::setWeights(double*new_weights){
+void Neuron::setDefaultMutation(float newMutation){
+    this->default_mutation = newMutation;
+}
+void Neuron::setWeights(float*new_weights){
     for(int i = 0; i < this->n_factors; i++)
         this->weights[i] = new_weights[i];
 }
@@ -48,22 +54,22 @@ int Neuron::getNFactors(){
 int Neuron::getLayer(){
     return this->layer;
 }
-double Neuron::getFactor(int index){
+float Neuron::getFactor(int index){
     if(index >= this->n_factors)
         return 0;
     return this->weights[index];
 }
-double Neuron::getLastResult(){
+float Neuron::getLastResult(){
     return this->last_output;
 }
-double*Neuron::copyFactors(){
-    double*copy = (double*)malloc(this->n_factors*sizeof(double));
+float*Neuron::copyFactors(){
+    float*copy = (float*)malloc(this->n_factors*sizeof(float));
     for(int i = 0; i < this->n_factors; i++)
         copy[i] = this->weights[i];
     return copy;
 }
-double Neuron::output(double*inputs){
-    double output = weights[0];//bias
+float Neuron::output(float*inputs){
+    float output = weights[0];//bias
     for(int i = 1; i < this->n_factors; i++){
         output+=this->weights[i]*inputs[i-1];
     }
@@ -77,23 +83,23 @@ double Neuron::output(double*inputs){
 void Neuron::randomize(int seed){
     std::srand(seed);
     for(int i = 0; i < this->n_factors; i++)
-        this->weights[i] = (static_cast<double>(std::rand()) / RAND_MAX * 2.0 - 1.0);
+        this->weights[i] = (static_cast<float>(std::rand()) / RAND_MAX * 2.0 - 1.0);
 }
-void Neuron::randomize(int seed, double*ranges){
+void Neuron::randomize(int seed, float*ranges){
     std::srand(seed);
     for(int i = 0; i < this->n_factors; i++){
-        this->weights[i] = (static_cast<double>(std::rand()) / RAND_MAX * 2.0*ranges[i] - 1.0*ranges[i]);
+        this->weights[i] = (static_cast<float>(std::rand()) / RAND_MAX * 2.0*ranges[i] - 1.0*ranges[i]);
     }
 }
-void Neuron::randomize(int seed, double range){
+void Neuron::randomize(int seed, float range){
     std::srand(seed);
     for(int i = 0; i < this->n_factors; i++){
-        this->weights[i] = (static_cast<double>(std::rand()) / RAND_MAX * 2.0*range - 1.0*range);
+        this->weights[i] = (static_cast<float>(std::rand()) / RAND_MAX * 2.0*range - 1.0*range);
     }
 }
-void Neuron::mutate(double mutationRange, int seed, bool*values_to_mutate){
+void Neuron::mutate(float mutationRange, int seed, bool*values_to_mutate){
     std::srand(seed);
-    double mutation;
+    float mutation;
     int coin;
     for(int i = 0; i < this->n_factors; i++){
         //std::cout<<"value "<<i<<" before mutating: "<<this->weights[i]<<"\n";
@@ -118,23 +124,33 @@ void Neuron::mutate(double mutationRange, int seed, bool*values_to_mutate){
                         this->weights[i] = -1*this->weights[i];
                 }
             }
-            mutation = (static_cast<double>(std::rand()) / RAND_MAX * 2*mutationRange - mutationRange);
+            mutation = (static_cast<float>(std::rand()) / RAND_MAX * 2*mutationRange - mutationRange);
             this->weights[i]*=(1+mutation);
             //std::cout<<"value "<<i<<" after mutating: "<<this->weights[i]<<"\n";
         }
     }
 }
-void Neuron::mutate(double mutationRange, int seed){
+void Neuron::mutate(float mutationRange, int seed){
     bool all_true[this->n_factors];
     for(int i = 0; i < this->n_factors; i++)
         all_true[i] = true;
     this->mutate(mutationRange, seed, all_true);
 }
+void Neuron::mutate(float mutation_chance, int seed, bool trash){
+    std::srand(seed);
+    int n_mutacoes = this->n_factors*mutation_chance, mutating_weight;
+    float mutation;
+    for(int i = 0; i < n_mutacoes; i++){
+        mutation = (static_cast<float>(std::rand()) / RAND_MAX * 2 - 1)*this->default_mutation;
+        mutating_weight = rand()%this->n_factors;
+        this->weights[mutating_weight]+=mutation;
+    }
+}
 void Neuron::copyNeuron(Neuron new_neuron){
     this->freeNeuron();
     this->sigmoid = new_neuron.sigmoid;
     this->n_factors = new_neuron.getNFactors();
-    this->weights = (double*) malloc(this->n_factors*sizeof(double));
+    this->weights = (float*) malloc(this->n_factors*sizeof(float));
     for(int i = 0; i < this->n_factors; i++)
         this->weights[i] = new_neuron.getFactor(i);
 }
@@ -239,13 +255,13 @@ void Network::copyNetwork(Network &original){
         }
     }
 }
-double* Network::runNetwork(double*input){
+float* Network::runNetwork(float*input){
     //there's an easy way of doing this with only one dynamically allocated array, using the largest number of inputs. I, however, have not done it this way
     //printf("entrou no runNetwork\n");
-    double *local_inputs = copy(input, this->n_inputs); double *results;
+    float *local_inputs = copy(input, this->n_inputs); float *results;
 
     for(int i = 0; i < this->n_layers; i++){
-    results = (double*) malloc(this->n_neurons_per_layer[i]*sizeof(double));
+    results = (float*) malloc(this->n_neurons_per_layer[i]*sizeof(float));
     for(int j = 0; j < this->n_neurons_per_layer[i]; j++){
         results[j] = this->layers[i][j].output(local_inputs);
     }
@@ -256,12 +272,12 @@ double* Network::runNetwork(double*input){
     //printf("saindo do runNetwork\n");
     return local_inputs;
 }
-double* Network::runNetwork(double*input, bool softmax){
+float* Network::runNetwork(float*input, bool softmax){
     //printf("no calculo dos indices softmax\n");
-    double*results = this->runNetwork(input);
+    float*results = this->runNetwork(input);
     if(softmax){
         //printf("entrando no loop\n");
-        double sum = 0;
+        float sum = 0;
         for(int i = 0; i < this->n_neurons_per_layer[this->n_layers-1]; i++){
             //std::cout<<"results[i] old = "<<results[i];
             results[i] = exp(results[i]);
@@ -275,11 +291,28 @@ double* Network::runNetwork(double*input, bool softmax){
     }
     return results;
 }
-int Network::runSoftmax(double*input, int default_decision){
+int Network::runSoftmax(float*input, int default_decision){
     //printf("no run softmax. Input is:\n  ");
-    double*results = this->runNetwork(input, true), max = results[default_decision];
+    float*results = this->runNetwork(input, true), max = results[default_decision];
     int index_max = default_decision;
     //printf("\nresults are:\n  ");
+    for(int i = 0; i < this->n_neurons_per_layer[this->n_layers-1]; i++){
+        //std::cout<<results[i]<<" ";
+        if(results[i] > max){
+            //printf("foi encontrado um melhor que o default\n");
+            max = results[i];
+            index_max = i;
+        }
+    }
+    //printf("\n");
+    free(results);
+    return index_max;
+}
+int Network::runSoftmax(float*input){
+    //printf("no run softmax. Input is:\n  ");
+    float*results = this->runNetwork(input, true), max = -1;
+    int index_max = -1;
+    //printf("results for softmax are:\n  ");
     for(int i = 0; i < this->n_neurons_per_layer[this->n_layers-1]; i++){
         //std::cout<<results[i]<<" ";
         if(results[i] > max){
@@ -291,14 +324,14 @@ int Network::runSoftmax(double*input, int default_decision){
     free(results);
     return index_max;
 }
-int Network::softmaxLayer(double*input, int layer){
+int Network::softmaxLayer(float*input, int layer){
     if(layer < 0 || layer >= this->n_layers)
         return -1;
     //TODO: rodar a rede parcialmente ao inves de fazer essa gambiarra
     //TODO: tirar o segundo loop e a divisao pela soma e testar se funciona.
-    double *results = runNetwork(input), results_i[this->n_neurons_per_layer[layer]];
+    float *results = runNetwork(input), results_i[this->n_neurons_per_layer[layer]];
     free(results);
-    double sum = 0, max = -1;
+    float sum = 0, max = -1;
     int index_max = -1;
     for(int i = 0; i < this->n_neurons_per_layer[layer]; i++){
         results_i[i] = exp(this->getNeuron(layer, i).getLastResult());
@@ -313,7 +346,7 @@ int Network::softmaxLayer(double*input, int layer){
     }
     return index_max;
 }
-void Network::randomize(int seed, double range){
+void Network::randomize(int seed, float range){
     srand(seed);
     for(int i = 0; i < this->n_layers; i++){
         //printf("randomizing in layer %d of %d, com %d neuronios\n", i, this->n_layers, n_neurons_per_layer[i]);
@@ -344,14 +377,14 @@ void Network::killNetwork(){
 }
 
 //utility functions. Might be related to objects
-double getCurrentTimeInSeconds() {
+float getCurrentTimeInSeconds() {
     auto currentTime = std::chrono::system_clock::now();
-    auto timeInSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(currentTime.time_since_epoch());
+    auto timeInSeconds = std::chrono::duration_cast<std::chrono::duration<float>>(currentTime.time_since_epoch());
 
     return timeInSeconds.count();
 }
-double* copy(double*origin, int size){
-    double*copy = (double*) malloc(size*sizeof(double));
+float* copy(float*origin, int size){
+    float*copy = (float*) malloc(size*sizeof(float));
     for(int i = 0; i < size; i++)
         copy[i] = origin[i];
     return copy;
@@ -361,7 +394,7 @@ Neuron reproduce(Neuron P1, Neuron P2, int mode){
         return Neuron();
     int n_factors = P1.getNFactors();//, layer = P1.getLayer();
     Neuron child = Neuron(n_factors, P1.getLayer());
-    double new_weights[n_factors];
+    float new_weights[n_factors];
     switch (mode)
     {
     case AVERAGE:
@@ -387,7 +420,7 @@ Neuron reproduce(Neuron P1, Neuron P2, int mode){
     child.setWeights(new_weights);
     return child;
 }
-Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate, int seed, double mutation_range, double mutation_chance, bool*values_to_mutate){
+Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate, int seed, float mutation_range, float mutation_chance){
     //printf("entrou no reproduce de networks\n");
     if((P1.getNLayers() != P2.getNLayers()) || (P1.getNInputs() != P2.getNInputs()))
         return Network();
@@ -402,7 +435,7 @@ Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate,
     Network child(n_layers, P1.getNInputs(), n_neurons_per_layer);
     Neuron temp;
     int coin;
-    double die;
+    float die;
     switch (chromosome)
     {
     case NEURONS:
@@ -412,13 +445,10 @@ Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate,
                 temp = reproduce(P1.getNeuron(i, j), P2.getNeuron(i, j), mode);
                 //printf("passou do reproduce neuron\n");
                 if(mutate){
-                    die = (static_cast<double>(std::rand()) / RAND_MAX);
+                    die = (static_cast<float>(std::rand()) / RAND_MAX);
                     //printf("passou do cast the die\n");
                     if(die < mutation_chance) {
-                        if(values_to_mutate == NULL)
-                            temp.mutate(mutation_range, mutation_chance);
-                        else
-                            temp.mutate(mutation_range, mutation_chance, values_to_mutate);
+                        temp.mutate(mutation_range, mutation_chance);
 					}
                 }
                 //printf("passou da mutacao\n");
@@ -465,11 +495,11 @@ Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate,
     return child;
 }
 Network reproduce(Network P1, Network P2, int chromosome, int mode){
-    return reproduce(P1, P2, chromosome, mode, false, -1, 0, 0, NULL);
+    return reproduce(P1, P2, chromosome, mode, false, -1, 0, 0);
 }
-Network reproduceAndKillParents(Network *P1, Network *P2, int which, int chromosome, int mode, bool mutate, int seed, double mutation_range, double mutation_chance, bool*values_to_mutate){
+Network reproduceAndKillParents(Network *P1, Network *P2, int which, int chromosome, int mode, bool mutate, int seed, float mutation_range, float mutation_chance){
     //TODO:checar validade de P1 e P2, modificar pra nao matar ninguem se child for invalido
-    Network child = reproduce(*P1, *P2, chromosome, mode, mutate, seed, mutation_range, mutation_chance, values_to_mutate);
+    Network child = reproduce(*P1, *P2, chromosome, mode, mutate, seed, mutation_range, mutation_chance);
     switch (which)
     {
     case 0:
