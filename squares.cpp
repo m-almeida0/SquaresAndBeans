@@ -224,7 +224,8 @@ void checkBest()
 
 	for (int i = 0; i < pop_size; i++) {
 		pop_outputs.push_back(
-			std::make_pair(i, (float)population[i].survival_time * (float)population[i].n_dodges));
+			std::make_pair(i, (float)population[i].survival_time *
+								  (float)population[i].n_dodges));
 		//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
 	}
 
@@ -630,14 +631,15 @@ void getGridData(float *destiny, int i_agent, int j_agent)
 void movePlayer(int i)
 {
 	//Dando segfault de vez em quando. Fix
-	int decision, new_line, new_column;
+	int decision, new_line = population[i].line,
+				  new_column = population[i].column;
 	float environment_data[6];
 	//printf("%d esta vivo. Em [%d, %d]\n", i, population[i].line, population[i].column);
 	getGridData(environment_data, population[i].line, population[i].column);
 	//printf("o agente %d esta %d e ve na sua posicao %d\n", i, population[i].alive, (int)environment_data[5]);
 	//printf("passou do getGridData\n");
 	decision = population[i].network.runSoftmax(environment_data);
-	//printf("\npassou da tomada de decisao, indo %d - %s\n",decision, strings[decision]);
+	printf("\npassou da tomada de decisao, indo %d - %s\n",decision, strings[decision]);
 	//printf("going %s\n", strings[decision]);
 	switch (decision) {
 	case UP:
