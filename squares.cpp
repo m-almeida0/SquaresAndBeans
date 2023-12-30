@@ -9,8 +9,10 @@
 #include <utility>
 #include <cstdio>
 #include <iostream>
-#include <sstream>
 #include <unistd.h>
+
+#define WALRUS 0
+#define N_BEST 1
 
 #define windowWidth 800
 #define windowHeight 800
@@ -89,6 +91,7 @@ float *best_of_n;
 int *alive_to_the_end;
 bool running;
 int n_inputs = 6, n_layers = 1, n_per_l[1] = { 4 };
+int breeding_type = 0;
 
 int slow_down = 10;
 void keyboard(unsigned char key, int x, int y);
@@ -102,12 +105,18 @@ int main(int argc, char *argv[])
 
 	std::cout << "insira o tamanho do grid ";
 	std::cin >> gridSize;
+
+	std::cout << "Escolha o tipo de cruzamento: WALRUS = 0, N_BEST = 1\n";
+	std::cin >> breeding_type;
+
 	std::cout
 		<< "insira o número de indivíduos, a duração de uma geração em frames e o numero de geracoes (nessa ordem, separado por epaços)\n";
 	std::cin >> pop_size >> generation_duration >> max_generations;
+
 	std::cout
 		<< "insira o número de raios que você quer atingindo a população, e o número de frames até um deles matar\n";
 	std::cin >> max_beans >> bean_delay;
+
 	std::cout
 		<< "insira o modo: AVERAGE = 0, SPLICING_HALF = 1, SPLICING_RAND = 2\n";
 	std::cin >> mode;
@@ -122,15 +131,21 @@ int main(int argc, char *argv[])
 		}
 	}
 	alive_pop = pop_size;
-	if (pop_size < 10) {
-		n_best = 1;
+
+	if (pop_size < 15 && breeding_type == N_BEST) {
+		while (pop_size < 15) {
+			std::cout
+				<< "População muito pequena, insira um valor maior ou igual a 15\n";
+			std::cin >> breeding_type;
+		}
 	} else if (pop_size < 100) {
-		n_best = 2;
-	} else if (pop_size < 1000) {
 		n_best = 3;
+	} else if (pop_size < 1000) {
+		n_best = 5;
 	} else {
-		n_best = 4;
+		n_best = 7;
 	}
+
 	population = (agent *)malloc(pop_size * sizeof(agent));
 	best_of_n = (float *)malloc(max_generations * sizeof(float));
 	alive_to_the_end = (int *)malloc(max_generations * sizeof(int));
@@ -209,7 +224,7 @@ void checkBest()
 
 	for (int i = 0; i < pop_size; i++) {
 		pop_outputs.push_back(
-			std::make_pair(i, (float)population[i].survival_time));
+			std::make_pair(i, (float)population[i].survival_time * (float)population[i].n_dodges));
 		//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
 	}
 
@@ -268,8 +283,8 @@ void nBestBreed()
 			int mother = (mother == 0) ? mother + 1 : mother - 1;
 		}
 
-		mutation_range = 0.5 * ((float)(pop_outputs.at(0).second +
-										pop_outputs.at(i).second) /
+		mutation_range = 0.5 * ((float)(pop_outputs.at(father).second +
+										pop_outputs.at(mother).second) /
 								(float)(2 * generation_duration)) +
 						 0.1;
 
@@ -673,6 +688,23 @@ void movePlayer(int i)
 	population[i].survival_time++;
 }
 
+void breed()
+{
+	switch (breeding_type) {
+	case WALRUS:
+		walrusBreed();
+		break;
+	case N_BEST:
+		nBestBreed();
+		break;
+	default:
+		std::cout
+			<< "Escolha um tipo válido de cruzamento: WALRUS = 0, N_BEST = 1\n";
+		std::cin >> breeding_type;
+		breed();
+	}
+}
+
 void simulation(int)
 {
 	if (running) {
@@ -707,8 +739,7 @@ void simulation(int)
 			if (n_generations > max_generations) {
 				running = false;
 			} else {
-				//nBestBreed();
-				walrusBreed();
+				breed();
 				generation_counter = 0;
 				n_beans = 0;
 			}
