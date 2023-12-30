@@ -112,7 +112,16 @@ int main(int argc, char*argv[]){
         for(int j = 0; j < gridSize; j++)
             grid[i][j] = 0;
     }
-    alive_pop = pop_size; n_best = pop_size/4;
+    alive_pop = pop_size;
+	if (pop_size < 10) {
+		n_best = 1;
+	} else if (pop_size < 100) {
+		n_best = 2;
+	} else if (pop_size < 1000) {
+		n_best = 3;
+	} else {
+		n_best = 4;
+	}
 	population = (agent*) malloc(pop_size*sizeof(agent));
 	best_of_n = (float*) malloc(max_generations*sizeof(float));
 	alive_to_the_end = (int*) malloc(max_generations*sizeof(int));
@@ -230,15 +239,15 @@ void nBestBreed() {
 		int mother = rand() % n_best;
 
 		if (father == mother) {
-			int mother = (mother == n_best - 1) ? mother - 1 : mother + 1;
+			int mother = (mother == 0) ? mother + 1 : mother - 1;
 		}
 
-		mutation_range = 0.5 * ((float) (pop_outputs.at(0).second+pop_outputs.at(i).second) / (float) (2*generation_duration)) + 0.1;
+		mutation_range = 0.5 * ((float) (pop_outputs.at(0).second + pop_outputs.at(i).second) / (float) (2*generation_duration)) + 0.1;
 
 		new_population[counter].line = temp_x;
 		new_population[counter].column = temp_y;
 		grid[temp_x][temp_y] = OCCUPIED;
-        new_population[counter].network = reproduce(population[pop_outputs.at(father).first].network, population[pop_outputs.at(mother).first].network, NEURONS, mode, true, (int) getCurrentTimeInSeconds(), mutation_range, mutation_chance);
+        new_population[counter].network = reproduce(population[pop_outputs.at(father).first].network, population[pop_outputs.at(mother).first].network, NEURONS, mode, true, rand(), mutation_range, mutation_chance);
 		new_population[counter].alive = true;
 		new_population[counter].survival_time = 0;
 		new_population[counter].n_dodges = 0;
@@ -280,7 +289,7 @@ void walrusBreed() {
 			new_population[counter].line = temp_x;
 			new_population[counter].column = temp_y;
 			grid[temp_x][temp_y] = OCCUPIED;
-			new_population[counter].network = reproduce(population[pop_outputs.at(0).first].network, population[pop_outputs.at(i).first].network, NEURONS, mode, true, (int) getCurrentTimeInSeconds(), mutation_range, mutation_chance);
+			new_population[counter].network = reproduce(population[pop_outputs.at(0).first].network, population[pop_outputs.at(i).first].network, NEURONS, mode, true, rand(), mutation_range, mutation_chance);
 			new_population[counter].alive = true;
 			new_population[counter].survival_time = 0;
 			new_population[counter].prev_pos = 0;
@@ -293,7 +302,7 @@ void walrusBreed() {
 			new_population[counter].line = temp_x;
 			new_population[counter].column = temp_y;
 			grid[temp_x][temp_y] = OCCUPIED;
-			new_population[counter].network = Network(n_layers, n_inputs, n_per_l, true, getCurrentTimeInSeconds());
+			new_population[counter].network = Network(n_layers, n_inputs, n_per_l, true, rand());
 			new_population[counter].alive = true;
 			new_population[counter].survival_time = 0;
 			new_population[counter].prev_pos = 0;
