@@ -13,6 +13,7 @@
 
 #define WALRUS 0
 #define N_BEST 1
+#define ASSEXUAL 2
 
 #define windowWidth 800
 #define windowHeight 800
@@ -61,6 +62,7 @@ bean *beans;
 
 float boundedRand(int seed, float min, float max)
 {
+	std::srand(seed);
 	//(static_cast<float>(std::rand())/RAND_MAX)
 	return min + (static_cast<float>(std::rand()) / RAND_MAX) * (max - min);
 }
@@ -106,7 +108,7 @@ int main(int argc, char *argv[])
 	std::cout << "insira o tamanho do grid ";
 	std::cin >> gridSize;
 
-	std::cout << "Escolha o tipo de cruzamento: WALRUS = 0, N_BEST = 1\n";
+	std::cout << "Escolha o tipo de cruzamento: WALRUS = 0, N_BEST = 1, ASSEXUAL = 2\n";
 	std::cin >> breeding_type;
 
 	std::cout
@@ -136,7 +138,7 @@ int main(int argc, char *argv[])
 		while (pop_size < 15) {
 			std::cout
 				<< "População muito pequena, insira um valor maior ou igual a 15\n";
-			std::cin >> breeding_type;
+			std::cin >> pop_size;
 		}
 	} else if (pop_size < 100) {
 		n_best = 3;
@@ -253,6 +255,40 @@ void checkBest()
 		bestOfAll.network = population[pop_outputs.at(0).first].network;
 		//printf("saiu best of all\n");
 	}
+}
+
+void assexualReproduction(){
+	clearGrid();
+
+	float mutation_chance = 0.45 * ((float)alive_pop / (float)pop_size) + 0.05,
+		  mutation_range;
+
+	int counter = 0;
+	for (int i = 0; i < pop_size; i++) {
+		//printf("counter: %d\n", counter);
+		// Add the result to the new list
+		int temp_x;
+		int temp_y;
+		do {
+			temp_x = rand() % gridSize;
+			temp_y = rand() % gridSize;
+		} while (grid[temp_x][temp_y] == OCCUPIED);
+
+		mutation_range = 0.5 * (float)(pop_outputs.at(counter).second/
+								(float)(generation_duration)) +
+						 0.1;
+
+		population[counter].line = temp_x;
+		population[counter].column = temp_y;
+		grid[temp_x][temp_y] = OCCUPIED;
+		population[counter].network.mutate(rand(), mutation_range, mutation_chance);
+		population[counter].alive = true;
+		population[counter].survival_time = 0;
+		population[counter].n_dodges = 0;
+		//printf("gerando individuo %d\n", counter);
+		counter++;
+	}
+	alive_pop = counter;
 }
 
 void nBestBreed()
@@ -630,16 +666,11 @@ void getGridData(float *destiny, int i_agent, int j_agent)
 
 void movePlayer(int i)
 {
-	//Dando segfault de vez em quando. Fix
 	int decision, new_line = population[i].line,
 				  new_column = population[i].column;
 	float environment_data[6];
-	//printf("%d esta vivo. Em [%d, %d]\n", i, population[i].line, population[i].column);
 	getGridData(environment_data, population[i].line, population[i].column);
-	//printf("o agente %d esta %d e ve na sua posicao %d\n", i, population[i].alive, (int)environment_data[5]);
-	//printf("passou do getGridData\n");
 	decision = population[i].network.runSoftmax(environment_data);
-	printf("\npassou da tomada de decisao, indo %d - %s\n",decision, strings[decision]);
 	//printf("going %s\n", strings[decision]);
 	switch (decision) {
 	case UP:
@@ -671,12 +702,9 @@ void movePlayer(int i)
 		new_line = population[i].line;
 		break;
 	}
-	//printf("passou do switch. novas coordenadas sao [%d, %d], com valor \n", new_line, new_column);
 	if (grid[new_line][new_column] != OCCUPIED) {
 		population[i].prev_pos = grid[population[i].line][population[i].column];
-		//printf("entrou no if\n");
 		removeFromGrid(population[i]);
-		//printf("foi tirado do grid\n");
 		population[i].line = new_line;
 		population[i].column = new_column;
 		population[i].new_pos = grid[new_line][new_column];
@@ -699,9 +727,12 @@ void breed()
 	case N_BEST:
 		nBestBreed();
 		break;
+	case ASSEXUAL:
+		assexualReproduction();
+		break;
 	default:
 		std::cout
-			<< "Escolha um tipo válido de cruzamento: WALRUS = 0, N_BEST = 1\n";
+			<< "Escolha um tipo válido de cruzamento: WALRUS = 0, N_BEST = 1, ASSEXUAL = 2\n";
 		std::cin >> breeding_type;
 		breed();
 	}

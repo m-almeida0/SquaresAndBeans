@@ -42,10 +42,11 @@ public:
 	void randomize(int seed);
 	void randomize(int seed, float *ranges);
 	void randomize(int seed, float range);
+	void randomize(float range, float discrete_step);
 	void mutate(float mutationRange, int seed);
 	void mutate(float mutation_chance, int seed, bool trash);
 	void mutate(float mutationRange, int seed, bool *values_to_mutate);
-	void copyNeuron(Neuron new_neuron);
+	void copyNeuron(Neuron original);
 	void printNeuron();
 	void freeNeuron();
 };
@@ -63,6 +64,9 @@ public:
 	Network(int n_layers, int n_inputs, int *n_neurons_per_layer);
 	Network(int n_layers, int n_inputs, int *n_neurons_per_layer,
 			bool initialize_rand, int seed);
+	Network(int n_layers, int n_inputs, int *n_neurons_per_layer,
+				 bool initialize_rand, float discrete_step);
+	bool validateNetwork();
 	int getNLayers();
 	int getNInputs();
 	Neuron getNeuron(int i, int j);
@@ -76,6 +80,8 @@ public:
 	int softmaxLayer(float *input, int layer);
 	void randomize(int seed);
 	void randomize(int seed, float range);
+	void randomize(float range, float discrete_step);
+	void mutate(int seed, float mutationRange, float mutationChance);
 	//TODO: implementar reproducao assexuada
 	//TODO: melhorar a mutacao implementando mutacao padrao
 	void killNetwork();

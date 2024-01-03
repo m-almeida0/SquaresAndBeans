@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <chrono>
+#include <random>
 
 float *copy(float *origin, int size);
 
@@ -96,6 +97,20 @@ float *Neuron::copyFactors()
 	return copy;
 }
 
+bool Network::validateNetwork(){
+	for(int i = 0; i < this->n_layers; i++){
+		for(int j = 0; j < this->n_neurons_per_layer[i]; j++){
+			for(int k = 0; k < this->layers[i][j].getNFactors(); k++){
+				if(std::isnan(this->layers[i][j].getFactor(k))){
+					printf("encontrado um nan no fator %d do neuronio %d na layer %d.\n", k, j, i);
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 float Neuron::output(float *inputs)
 {
 	float output = weights[0]; //bias
@@ -103,10 +118,15 @@ float Neuron::output(float *inputs)
 		output += this->weights[i] * inputs[i - 1];
 	}
 	if (this->sigmoid) {
-		output = 1 / (1 + exp(-1 * output + this->midpoint));
+		if(output > 0){
+			output = 1 / (1 + exp(-1 * output + this->midpoint));
+		}
+		else{
+			float exp_x = exp(output+this->midpoint);
+			output = exp_x/(1+exp_x);
+		}
 	}
 	this->last_output = output;
-	//std::cout<<"output is "<<output<<"\n";
 	return output;
 }
 
@@ -121,61 +141,64 @@ void Neuron::randomize(int seed)
 
 void Neuron::randomize(int seed, float *ranges)
 {
-	std::srand(seed);
-	for (int i = 0; i < this->n_factors; i++) {
-		this->weights[i] =
-			(static_cast<float>(std::rand()) / RAND_MAX * 2.0 * ranges[i] -
-			 1.0 * ranges[i]);
-	}
+	std::mt19937 generator(seed); // Mersenne Twister 19937 generator
+
+    for (int i = 0; i < this->n_factors; i++) {
+		std::uniform_real_distribution<float> distribution(-ranges[i], ranges[i]);
+        this->weights[i] = distribution(generator);
+    }
 }
 
 void Neuron::randomize(int seed, float range)
 {
-	std::srand(seed);
-	for (int i = 0; i < this->n_factors; i++) {
-		this->weights[i] =
-			(static_cast<float>(std::rand()) / RAND_MAX * 2.0 * range -
-			 1.0 * range);
-	}
+    std::mt19937 generator(seed); // Mersenne Twister 19937 generator
+    std::uniform_real_distribution<float> distribution(-range, range);
+
+    for (int i = 0; i < this->n_factors; i++) {
+        this->weights[i] = distribution(generator);
+    }
 }
+
+void Neuron::randomize(float range, float discrete_step)
+{
+    //int randomInt = distribution(generator);
+	float n_steps = 1*range/discrete_step;
+    std::mt19937 generator(std::random_device{}());
+    std::uniform_int_distribution<int> distribution((int)-n_steps, (int)n_steps);
+
+    for (int i = 0; i < this->n_factors; i++) {
+        this->weights[i] *= (1+distribution(generator)*discrete_step);
+    }
+}
+
+#include<unistd.h>
 
 void Neuron::mutate(float mutationRange, int seed, bool *values_to_mutate)
 {
-	std::srand(seed);
-	float mutation;
-	int coin;
-	for (int i = 0; i < this->n_factors; i++) {
-		//std::cout<<"value "<<i<<" before mutating: "<<this->weights[i]<<"\n";
-		if (values_to_mutate[i]) {
-			//if the value is too low, regular mutation won't get it exactly to 0, or change it's signal
-			if (this->weights[i] < 0.1 && this->weights[i] > -0.1) {
-				coin = std::rand() % 2;
-				//and if it's exactly 0, regular mutation won't get it to anything
-				if (this->weights[i] == 0) {
-					if (coin) {
-						coin = std::rand() % 2;
-						if (coin) {
-							this->weights[i] = mutationRange;
-						} else {
-							this->weights[i] = -1 * mutationRange;
-						}
-					}
-				} else {
-					if (coin) {
-						this->weights[i] = 0;
-					} else {
-						this->weights[i] = -1 * this->weights[i];
-					}
-				}
-			}
-			mutation = (static_cast<float>(std::rand()) / RAND_MAX * 2 *
-							mutationRange -
-						mutationRange);
-			this->weights[i] *= (1 + mutation);
-			//std::cout<<"value "<<i<<" after mutating: "<<this->weights[i]<<"\n";
-		}
-	}
+	std::mt19937 generator(seed); // Mersenne Twister 19937 generator
+    std::uniform_real_distribution<float> distribution(-mutationRange, mutationRange);
+
+    for (int i = 0; i < this->n_factors; i++) {
+        // std::cout << "value " << i << " before mutating: " << this->weights[i] << "\n";
+        if (values_to_mutate[i]) {
+            // if the value is too low, regular mutation won't get it exactly to 0, or change its sign
+            if (std::abs(this->weights[i]) < 0.1) {
+                // if it's exactly 0, set it to a random value
+                if (this->weights[i] == 0) {
+                    this->weights[i] = distribution(generator);
+                } else {
+                    // set it to 0 or invert its sign
+                    this->weights[i] = (std::rand() % 2 == 0) ? 0.0 : -this->weights[i];
+                }
+            } else {
+                float mutation = distribution(generator);
+                this->weights[i] *= (1 + mutation);
+            }
+            // std::cout << "value " << i << " after mutating: " << this->weights[i] << "\n";
+        }
+    }
 }
+
 
 void Neuron::mutate(float mutationRange, int seed)
 {
@@ -199,14 +222,15 @@ void Neuron::mutate(float mutation_chance, int seed, bool trash)
 	}
 }
 
-void Neuron::copyNeuron(Neuron new_neuron)
+void Neuron::copyNeuron(Neuron original)
 {
 	this->freeNeuron();
-	this->sigmoid = new_neuron.sigmoid;
-	this->n_factors = new_neuron.getNFactors();
+	this->sigmoid = original.sigmoid;
+	this->n_factors = original.getNFactors();
 	this->weights = (float *)malloc(this->n_factors * sizeof(float));
 	for (int i = 0; i < this->n_factors; i++) {
-		this->weights[i] = new_neuron.getFactor(i);
+		this->weights[i] = original.getFactor(i);
+		//std::cout<<"copiando o fator "<<i<<" : "<<original.getFactor(i)<<" ";
 	}
 }
 
@@ -230,7 +254,7 @@ void Neuron::freeNeuron()
 
 Network::Network()
 {
-	this->n_layers - 1;
+	this->n_layers = - 1;
 	this->n_inputs = 0;
 	this->n_neurons_per_layer = NULL;
 	this->layers = NULL;
@@ -266,6 +290,15 @@ Network::Network(int n_layers, int n_inputs, int *n_neurons_per_layer,
 	}
 }
 
+Network::Network(int n_layers, int n_inputs, int *n_neurons_per_layer,
+				 bool initialize_rand, float discrete_step)
+	: Network(n_layers, n_inputs, n_neurons_per_layer)
+{
+	if (initialize_rand) {
+		this->randomize((float)0.5, discrete_step);
+	}
+}
+
 int Network::getNLayers()
 {
 	return this->n_layers;
@@ -297,51 +330,34 @@ int Network::NNeuronsInLayerN(int layer)
 
 void Network::copyNeuron(int i, int j, Neuron new_neuron)
 {
-	//printf("entrou no copy neuron\n");
 	//this->printNetwork();
 	if (this->n_layers <= i) {
+		//printf("overflow de layer\n");
 		return;
 	}
 	if (this->n_neurons_per_layer[i] <= j) {
+		//printf("overflow de neuronio\n");
 		return;
 	}
-	if (new_neuron.getNFactors() != (this->layers[i][j].getNFactors() + 1)) {
+	/*if (new_neuron.getNFactors() != (this->layers[i][j].getNFactors() + 1)) {
+		printf("reprovou no numero de fatores\n");
 		return;
-	}
-	//printf("passou da validacao\n");
+	}*/
 	this->layers[i][j].copyNeuron(new_neuron); // = Neuron(new_neuron);
 	//printf("passou de dar assign o novo neuron\n");
 }
 
 void Network::copyNetwork(Network &original)
 {
-	printf("entrou no copyNetwork\n");
-	printf("numero de camadas: %d\n", original.getNLayers());
-	printf("verif entrda %d: %d\n", 0, original.NNeuronsInLayerN(0));
 	this->killNetwork();
-	printf("verif kill %d: %d\n", 0, original.NNeuronsInLayerN(0));
-	int n_layers = original.getNLayers();
-	this->n_layers = n_layers;
-	printf("numero de neuronios na camada %d: %d\n", 0,
-		   original.NNeuronsInLayerN(0));
-	this->n_inputs = original.getNInputs();
-	this->layers = (Neuron **)malloc(n_layers * sizeof(Neuron *));
-	this->n_neurons_per_layer = (int *)malloc(n_layers * sizeof(int));
-	int layer_n_inputs = original.getNInputs();
-	for (int i = 0; i < n_layers; i++) {
-		printf("entrou no primeiro loop\n");
+	this->n_layers = original.getNLayers();
+	this->n_neurons_per_layer = (int*) malloc(this->n_layers*sizeof(int));
+	this->layers = (Neuron**) malloc(this->n_layers*sizeof(Neuron*));
+	for(int i = 0; i < this->n_layers; i++){
 		this->n_neurons_per_layer[i] = original.NNeuronsInLayerN(i);
-		printf("numero de neuronios na camada %d: %d\n", i,
-			   original.NNeuronsInLayerN(i));
-		if (i > 0) {
-			layer_n_inputs = original.NNeuronsInLayerN(i - 1);
-		}
-		this->layers[i] =
-			(Neuron *)malloc(original.NNeuronsInLayerN(i) * sizeof(Neuron));
-		for (int j = 0; j < original.NNeuronsInLayerN(i); j++) {
-			printf("copiando neuronio %d da camada %d\n", j, i);
-			layers[i][j] = Neuron();
-			layers[i][j].copyNeuron(original.getNeuron(i, j));
+		this->layers[i] = (Neuron*) malloc(this->n_neurons_per_layer[i]*sizeof(Neuron*));
+		for(int j = 0; j < this->n_neurons_per_layer[i]; j++){
+			this->layers[i][j].copyNeuron(original.getNeuron(i, j));
 		}
 	}
 }
@@ -413,18 +429,14 @@ int Network::runSoftmax(float *input, int default_decision)
 
 int Network::runSoftmax(float *input)
 {
-	//printf("no run softmax. Input is:\n  ");
 	float *results = this->runNetwork(input, true), max = -1;
 	int index_max = -1;
-	//printf("results for softmax are:\n  ");
 	for (int i = 0; i < this->n_neurons_per_layer[this->n_layers - 1]; i++) {
-		//std::cout<<results[i]<<" ";
 		if (results[i] > max) {
 			max = results[i];
 			index_max = i;
 		}
 	}
-	//printf("\n");
 	free(results);
 	return index_max;
 }
@@ -467,9 +479,33 @@ void Network::randomize(int seed, float range)
 	}
 }
 
+void Network::randomize(float range, float discrete_step)
+{
+	for (int i = 0; i < this->n_layers; i++) {
+		//printf("randomizing in layer %d of %d, com %d neuronios\n", i, this->n_layers, n_neurons_per_layer[i]);
+		for (int j = 0; j < this->n_neurons_per_layer[i]; j++) {
+			//printf("randomizing neuron %d\n", j);
+			this->layers[i][j].randomize(range, discrete_step);
+		}
+	}
+}
+
 void Network::randomize(int seed)
 {
 	this->randomize(seed, 1);
+}
+
+void Network::mutate(int seed, float mutationRange, float mutationChance){
+	std::srand(seed);
+	int n_neurons = 0;
+	for(int i = 0; i < this->n_layers; i++)
+		n_neurons+=this->n_neurons_per_layer[i];
+	int n_mutations = mutationChance*n_neurons, temp_layer, temp_neuron;
+	for(int i = 0; i < n_mutations; i++){
+		temp_layer = rand()%this->n_layers;
+		temp_neuron = rand()%this->n_neurons_per_layer[temp_layer];
+		this->layers[temp_layer][temp_neuron].mutate(mutationRange, rand());
+	}
 }
 
 void Network::killNetwork()
@@ -511,12 +547,15 @@ float *copy(float *origin, int size)
 	return copy;
 }
 
+
 Neuron reproduce(Neuron P1, Neuron P2, int mode)
 {
-	if ((P1.getNFactors() != P2.getNFactors()) ||
-		(P1.getLayer() != P2.getLayer())) {
+	//printf("entrando no reproduce neuron\n");
+	if ((P1.getNFactors() != P2.getNFactors())) {
+		//printf("reprovou no numero de fatores\n");
 		return Neuron();
 	}
+	//printf("passou na validação do reproduce neuron\n");
 	int n_factors = P1.getNFactors(); //, layer = P1.getLayer();
 	Neuron child = Neuron(n_factors, P1.getLayer());
 	float new_weights[n_factors];
@@ -577,7 +616,7 @@ Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate,
 			for (int j = 0; j < n_neurons_per_layer[i]; j++) {
 				//printf("gerando neuronio %d, %d do filho\n", i, j);
 				temp = reproduce(P1.getNeuron(i, j), P2.getNeuron(i, j), mode);
-				//printf("passou do reproduce neuron\n");
+				//printf("n_factors de temp is %d\n", temp.getNFactors());
 				if (mutate) {
 					die = (static_cast<float>(std::rand()) / RAND_MAX);
 					//printf("passou do cast the die\n");
@@ -587,9 +626,7 @@ Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate,
 				}
 				//printf("passou da mutacao\n");
 				child.copyNeuron(i, j, temp);
-				//printf("passou do copyNeuron\n");
 				temp.freeNeuron();
-				//printf("passou do free no temp\n");
 			}
 		}
 		break;
@@ -631,7 +668,7 @@ Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate,
 		}
 		break;
 	}
-	//printf("chegou no return\n");
+	child.validateNetwork();
 	return child;
 }
 
