@@ -8,6 +8,9 @@ game: NNetworks.o
 NNetworks.o:
 	g++ $(FLAGS) -c NNetworks.cpp -o NNetworks.o
 
+plot:
+	QT_QPA_PLATFORM=wayland python plot_csv.py
+
 clean:
 	rm -f *.o
 	rm -f squares

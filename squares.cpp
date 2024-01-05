@@ -91,7 +91,9 @@ void clearGrid();
 
 int window;
 int max_generations;
-float *best_of_n;
+float *best_score_of_n;
+int *best_time_of_n;
+int *best_dodges_of_n;
 int *alive_to_the_end;
 bool running;
 int n_inputs = 6, n_layers = 1, n_per_l[1] = { 4 };
@@ -152,7 +154,9 @@ int main(int argc, char *argv[])
 	}
 
 	population = (agent *)malloc(pop_size * sizeof(agent));
-	best_of_n = (float *)malloc(max_generations * sizeof(float));
+	best_score_of_n = (float *)malloc(max_generations * sizeof(float));
+	best_time_of_n = (int *)malloc(max_generations * sizeof(int));
+	best_dodges_of_n = (int *)malloc(max_generations * sizeof(int));
 	alive_to_the_end = (int *)malloc(max_generations * sizeof(int));
 	int temp_x, temp_y;
 	for (int i = 0; i < pop_size; i++) {
@@ -178,7 +182,7 @@ int main(int argc, char *argv[])
 	glutInitDisplayMode(GLUT_RGBA);
 	glutInitWindowSize(windowWidth, windowHeight);
 	glutInitWindowPosition(120, 120);
-	window = glutCreateWindow("sumulacao");
+	window = glutCreateWindow("simulacao");
 	glClearColor(0, 0, 0, 1.0);
 	glutDisplayFunc(draw);
 	glutTimerFunc(0, simulation, 0);
@@ -198,7 +202,9 @@ int main(int argc, char *argv[])
 	}
 	free(grid);
 	printf("deu free no grid\n");
-	free(best_of_n);
+	free(best_score_of_n);
+	free(best_time_of_n);
+	free(best_dodges_of_n);
 	free(alive_to_the_end);
 	return 0;
 }
@@ -240,10 +246,12 @@ void checkBest()
 			  });
 
 	printf(
-		"best of generation %d: survival time = %d, n_dodges = %d, pontuation = %lf \n",
+		"best of generation %d: survival time = %d, n_dodges = %d, score = %lf \n",
 		n_generations, population[pop_outputs.at(0).first].survival_time,
 		population[pop_outputs.at(0).first].n_dodges, pop_outputs.at(0).second);
-	best_of_n[n_generations - 1] = pop_outputs.at(0).second;
+	best_score_of_n[n_generations - 1] = pop_outputs.at(0).second;
+	best_time_of_n[n_generations - 1] = population[pop_outputs.at(0).first].survival_time;
+	best_dodges_of_n[n_generations - 1] = population[pop_outputs.at(0).first].n_dodges;
 	alive_to_the_end[n_generations - 1] = alive_pop;
 
 	//printf("best of all: survival time: %d, n dodges: %d\n", bestOfAll.survival_time);
@@ -572,9 +580,10 @@ void print_csv()
 {
 	FILE *csv = fopen("csv.out", "w");
 
+	fprintf(csv, "generation,score,time,n dodges\n");
+
 	for (int i = 0; i < max_generations; i++) {
-		std::cout << i << "," << best_of_n[i] << "\n";
-		fprintf(csv, "%d,%f\n", i, best_of_n[i]);
+		fprintf(csv, "%d,%f,%d,%d\n", i, best_score_of_n[i], best_time_of_n[i], best_dodges_of_n[i]);
 	}
 
 	fclose(csv);
@@ -618,7 +627,7 @@ void draw()
 			glRasterPos2f(x, y);
 			std::string end_message =
 				"in generation " + std::to_string(i) + " best is " +
-				std::to_string(best_of_n[i]) + " and " +
+				std::to_string(best_score_of_n[i]) + " and " +
 				std::to_string(alive_to_the_end[i]) + " survived to the end";
 			for (char c : end_message) {
 				glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
@@ -628,12 +637,7 @@ void draw()
 
 		if (print_once) {
 			print_csv();
-		} else {
-			__fpurge(stdin);
-			std::cout << "Press anything to plot CSV: ";
-			getchar();
-
-			std::cout << "Yeyyyyyy!!!!\n";
+			std::cout << "Use \"make plot\" to plot the simulation data\n"; 
 		}
 
 		//sleep(10000);
