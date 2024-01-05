@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <iostream>
 #include <unistd.h>
+#include <stdio.h>
+#include <stdio_ext.h>
 
 #define WALRUS 0
 #define N_BEST 1
@@ -108,7 +110,8 @@ int main(int argc, char *argv[])
 	std::cout << "insira o tamanho do grid ";
 	std::cin >> gridSize;
 
-	std::cout << "Escolha o tipo de cruzamento: WALRUS = 0, N_BEST = 1, ASSEXUAL = 2\n";
+	std::cout
+		<< "Escolha o tipo de cruzamento: WALRUS = 0, N_BEST = 1, ASSEXUAL = 2\n";
 	std::cin >> breeding_type;
 
 	std::cout
@@ -257,7 +260,8 @@ void checkBest()
 	}
 }
 
-void assexualReproduction(){
+void assexualReproduction()
+{
 	clearGrid();
 
 	float mutation_chance = 0.45 * ((float)alive_pop / (float)pop_size) + 0.05,
@@ -274,14 +278,15 @@ void assexualReproduction(){
 			temp_y = rand() % gridSize;
 		} while (grid[temp_x][temp_y] == OCCUPIED);
 
-		mutation_range = 0.5 * (float)(pop_outputs.at(counter).second/
-								(float)(generation_duration)) +
+		mutation_range = 0.5 * (float)(pop_outputs.at(counter).second /
+									   (float)(generation_duration)) +
 						 0.1;
 
 		population[counter].line = temp_x;
 		population[counter].column = temp_y;
 		grid[temp_x][temp_y] = OCCUPIED;
-		population[counter].network.mutate(rand(), mutation_range, mutation_chance);
+		population[counter].network.mutate(rand(), mutation_range,
+										   mutation_chance);
 		population[counter].alive = true;
 		population[counter].survival_time = 0;
 		population[counter].n_dodges = 0;
@@ -561,6 +566,22 @@ void drawAgent(agent an_agent, int i)
 	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
 }
 
+bool print_once = true;
+
+void print_csv()
+{
+	FILE *csv = fopen("csv.out", "w");
+
+	for (int i = 0; i < max_generations; i++) {
+		std::cout << i << "," << best_of_n[i] << "\n";
+		fprintf(csv, "%d,%f\n", i, best_of_n[i]);
+	}
+
+	fclose(csv);
+
+	print_once = false;
+}
+
 void draw()
 {
 	//printf("no draw\n");
@@ -604,10 +625,18 @@ void draw()
 			}
 			y -= 0.08;
 		}
-		for (int i = 0; i < max_generations; i++) {
-			std::cout << i << "," << best_of_n[i] << "\n";
+
+		if (print_once) {
+			print_csv();
+		} else {
+			__fpurge(stdin);
+			std::cout << "Press anything to plot CSV: ";
+			getchar();
+
+			std::cout << "Yeyyyyyy!!!!\n";
 		}
-		sleep(10000);
+
+		//sleep(10000);
 	}
 	glutSwapBuffers();
 }
