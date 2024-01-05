@@ -1,3 +1,5 @@
 *.o
 *.txt
+*.out
+*.in
 squares
