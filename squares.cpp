@@ -146,11 +146,11 @@ int main(int argc, char *argv[])
 			std::cin >> pop_size;
 		}
 	} else if (pop_size < 100) {
-		n_best = 3;
+		n_best = pop_size / 3;
 	} else if (pop_size < 1000) {
-		n_best = 5;
+		n_best = pop_size / 5;
 	} else {
-		n_best = 7;
+		n_best = pop_size / 7;
 	}
 
 	population = (agent *)malloc(pop_size * sizeof(agent));
@@ -250,8 +250,10 @@ void checkBest()
 		n_generations, population[pop_outputs.at(0).first].survival_time,
 		population[pop_outputs.at(0).first].n_dodges, pop_outputs.at(0).second);
 	best_score_of_n[n_generations - 1] = pop_outputs.at(0).second;
-	best_time_of_n[n_generations - 1] = population[pop_outputs.at(0).first].survival_time;
-	best_dodges_of_n[n_generations - 1] = population[pop_outputs.at(0).first].n_dodges;
+	best_time_of_n[n_generations - 1] =
+		population[pop_outputs.at(0).first].survival_time;
+	best_dodges_of_n[n_generations - 1] =
+		population[pop_outputs.at(0).first].n_dodges;
 	alive_to_the_end[n_generations - 1] = alive_pop;
 
 	//printf("best of all: survival time: %d, n dodges: %d\n", bestOfAll.survival_time);
@@ -286,9 +288,11 @@ void assexualReproduction()
 			temp_y = rand() % gridSize;
 		} while (grid[temp_x][temp_y] == OCCUPIED);
 
-		mutation_range = 0.5 * (float)(pop_outputs.at(counter).second /
-									   (float)(generation_duration)) +
-						 0.1;
+		mutation_range =
+			0.5 *
+				(float)(population[pop_outputs.at(counter).first].survival_time /
+						(float)(generation_duration)) +
+			0.1;
 
 		population[counter].line = temp_x;
 		population[counter].column = temp_y;
@@ -333,10 +337,12 @@ void nBestBreed()
 			int mother = (mother == 0) ? mother + 1 : mother - 1;
 		}
 
-		mutation_range = 0.5 * ((float)(pop_outputs.at(father).second +
-										pop_outputs.at(mother).second) /
-								(float)(2 * generation_duration)) +
-						 0.1;
+		mutation_range =
+			0.5 *
+				((float)(population[pop_outputs.at(father).first].survival_time +
+						 population[pop_outputs.at(mother).first].survival_time) /
+				 (float)(2 * generation_duration)) +
+			0.1;
 
 		new_population[counter].line = temp_x;
 		new_population[counter].column = temp_y;
@@ -385,10 +391,12 @@ void walrusBreed()
 				temp_x = rand() % gridSize;
 				temp_y = rand() % gridSize;
 			} while (grid[temp_x][temp_y] == OCCUPIED);
-			mutation_range = 0.5 * ((float)(pop_outputs.at(0).second +
-											pop_outputs.at(i).second) /
-									(float)(2 * generation_duration)) +
-							 0.1;
+			mutation_range =
+				0.5 *
+					((float)(population[pop_outputs.at(0).first].survival_time +
+							 population[pop_outputs.at(i).first].survival_time) /
+					 (float)(2 * generation_duration)) +
+				0.1;
 			new_population[counter].line = temp_x;
 			new_population[counter].column = temp_y;
 			grid[temp_x][temp_y] = OCCUPIED;
@@ -583,7 +591,8 @@ void print_csv()
 	fprintf(csv, "generation,score,time,n dodges\n");
 
 	for (int i = 0; i < max_generations; i++) {
-		fprintf(csv, "%d,%f,%d,%d\n", i, best_score_of_n[i], best_time_of_n[i], best_dodges_of_n[i]);
+		fprintf(csv, "%d,%f,%d,%d\n", i, best_score_of_n[i], best_time_of_n[i],
+				best_dodges_of_n[i]);
 	}
 
 	fclose(csv);
@@ -637,7 +646,7 @@ void draw()
 
 		if (print_once) {
 			print_csv();
-			std::cout << "Use \"make plot\" to plot the simulation data\n"; 
+			std::cout << "Use \"make plot\" to plot the simulation data\n";
 		}
 
 		//sleep(10000);
