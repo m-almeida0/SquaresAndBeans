@@ -175,6 +175,8 @@ void Neuron::randomize(float range, float discrete_step)
 
 void Neuron::mutate(float mutationRange, int seed, bool *values_to_mutate)
 {
+	//printf("antes da mutacao:\n");
+	//this->printNeuron();
 	std::mt19937 generator(seed); // Mersenne Twister 19937 generator
     std::uniform_real_distribution<float> distribution(-mutationRange, mutationRange);
 
@@ -197,6 +199,8 @@ void Neuron::mutate(float mutationRange, int seed, bool *values_to_mutate)
             // std::cout << "value " << i << " after mutating: " << this->weights[i] << "\n";
         }
     }
+	//printf("depois da mutacao:\n");
+	//this->printNeuron();
 }
 
 
@@ -496,6 +500,7 @@ void Network::randomize(int seed)
 }
 
 void Network::mutate(int seed, float mutationRange, float mutationChance){
+	printf("antes da mutacao:\n");
 	std::srand(seed);
 	int n_neurons = 0;
 	for(int i = 0; i < this->n_layers; i++)
@@ -525,6 +530,20 @@ void Network::killNetwork()
 	free(this->n_neurons_per_layer);
 	this->n_neurons_per_layer = NULL;
 	//printf("e saiu do kill network\n");
+}
+
+void Network::printLastLayer(){
+	for(int i = 0; i < this->n_neurons_per_layer[this->n_layers-1]; i++){
+		printf("%d\t", i);
+	}
+	printf("\n");
+	for(int i = 0; i < this->n_neurons_per_layer[this->n_layers-1]; i++){
+		for(int j = 0; j < this->layers[this->n_layers-1][i].getNFactors(); j++){
+			std::cout<<this->layers[this->n_layers-1][i].getFactor(j)<<" ";
+		}
+		printf("| ");
+	}
+	printf("\n");
 }
 
 //utility functions. Might be related to objects

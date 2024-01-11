@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdio_ext.h>
 
-#define WALRUS 0
+#define ELITIST 0
 #define N_BEST 1
 #define ASSEXUAL 2
 
@@ -27,6 +27,11 @@
 char strings[5][7] = { "up", "down", "right", "left" };
 
 #define OCCUPIED 1000
+
+#define MAX_MUTATION_CHANCE 0.2
+#define MIN_MUTATION_CHANCE 0.02
+#define MAX_MUTATION_RANGE 0.1
+#define MIN_MUTATION_RANGE 0.01
 
 int **grid;
 
@@ -113,7 +118,7 @@ int main(int argc, char *argv[])
 	std::cin >> gridSize;
 
 	std::cout
-		<< "Escolha o tipo de cruzamento: WALRUS = 0, N_BEST = 1, ASSEXUAL = 2\n";
+		<< "Escolha o tipo de cruzamento: ELITIST = 0, N_BEST = 1, ASSEXUAL = 2\n";
 	std::cin >> breeding_type;
 
 	std::cout
@@ -127,7 +132,7 @@ int main(int argc, char *argv[])
 	std::cout
 		<< "insira o modo: AVERAGE = 0, SPLICING_HALF = 1, SPLICING_RAND = 2\n";
 	std::cin >> mode;
-	//std::cout<<"por fim, insira o modo de cruzamento: N Best = 0, Walrus = 1\n";
+	//std::cout<<"por fim, insira o modo de cruzamento: N Best = 0, elitist = 1\n";
 	//std::cin>>breeding;
 
 	grid = (int **)malloc(gridSize * sizeof(int *));
@@ -139,7 +144,10 @@ int main(int argc, char *argv[])
 	}
 	alive_pop = pop_size;
 
-	if (pop_size < 15 && breeding_type == N_BEST) {
+	if (breeding_type == N_BEST){
+		n_best = 0.4*pop_size;
+	}
+	/*if (pop_size < 15 && breeding_type == N_BEST) {
 		while (pop_size < 15) {
 			std::cout
 				<< "População muito pequena, insira um valor maior ou igual a 15\n";
@@ -151,7 +159,7 @@ int main(int argc, char *argv[])
 		n_best = 5;
 	} else {
 		n_best = 7;
-	}
+	}*/
 
 	population = (agent *)malloc(pop_size * sizeof(agent));
 	best_score_of_n = (float *)malloc(max_generations * sizeof(float));
@@ -229,25 +237,35 @@ void keyboard(unsigned char key, int x, int y)
 	}
 }
 
-void checkBest()
+void checkBest(bool time)
 {
 	pop_outputs.clear();
 
-	for (int i = 0; i < pop_size; i++) {
-		pop_outputs.push_back(
-			std::make_pair(i, (float)population[i].survival_time *
-								  (float)population[i].n_dodges));
-		//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
+	if(time){
+		for (int i = 0; i < pop_size; i++) {
+			pop_outputs.push_back(std::make_pair(i, (float)population[i].survival_time));
+			/*pop_outputs.push_back(
+				std::make_pair(i, (float)population[i].survival_time *
+									  (float)population[i].n_dodges/ (float) generation_duration));
+			//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
+			*/
+		}
+	}else{
+		for (int i = 0; i < pop_size; i++) {
+			pop_outputs.push_back(
+				std::make_pair(i, (float)population[i].survival_time *
+									  (float)population[i].n_dodges/ (float) generation_duration));
+			//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
+		}
 	}
-
 	std::sort(pop_outputs.begin(), pop_outputs.end(),
 			  [](const auto &lhs, const auto &rhs) {
 				  return lhs.second > rhs.second;
 			  });
 
 	printf(
-		"best of generation %d: survival time = %d, n_dodges = %d, score = %lf \n",
-		n_generations, population[pop_outputs.at(0).first].survival_time,
+		"generation %d: survivors = %d, best: survival time = %d, n_dodges = %d, score = %lf \n",
+		n_generations, alive_pop, population[pop_outputs.at(0).first].survival_time,
 		population[pop_outputs.at(0).first].n_dodges, pop_outputs.at(0).second);
 	best_score_of_n[n_generations - 1] = pop_outputs.at(0).second;
 	best_time_of_n[n_generations - 1] = population[pop_outputs.at(0).first].survival_time;
@@ -268,116 +286,48 @@ void checkBest()
 	}
 }
 
-void assexualReproduction()
-{
-	clearGrid();
-
-	float mutation_chance = 0.45 * ((float)alive_pop / (float)pop_size) + 0.05,
-		  mutation_range;
-
-	int counter = 0;
-	for (int i = 0; i < pop_size; i++) {
-		//printf("counter: %d\n", counter);
-		// Add the result to the new list
-		int temp_x;
-		int temp_y;
-		do {
-			temp_x = rand() % gridSize;
-			temp_y = rand() % gridSize;
-		} while (grid[temp_x][temp_y] == OCCUPIED);
-
-		mutation_range = 0.5 * (float)(pop_outputs.at(counter).second /
-									   (float)(generation_duration)) +
-						 0.1;
-
-		population[counter].line = temp_x;
-		population[counter].column = temp_y;
-		grid[temp_x][temp_y] = OCCUPIED;
-		population[counter].network.mutate(rand(), mutation_range,
-										   mutation_chance);
-		population[counter].alive = true;
-		population[counter].survival_time = 0;
-		population[counter].n_dodges = 0;
-		//printf("gerando individuo %d\n", counter);
-		counter++;
-	}
-	alive_pop = counter;
-}
-
-void nBestBreed()
-{
-	//printf("Entrou em nBestBreed\n");
-	agent *new_population = (agent *)malloc(pop_size * sizeof(agent));
-
-	clearGrid();
-
-	float mutation_chance = 0.45 * ((float)alive_pop / (float)pop_size) + 0.05,
-		  mutation_range;
-
-	int counter = 0;
-	//printf("n best: %d\n", n_best);
-	for (int i = 0; i < pop_size; i++) {
-		//printf("counter: %d\n", counter);
-		// Add the result to the new list
-		int temp_x;
-		int temp_y;
-		do {
-			temp_x = rand() % gridSize;
-			temp_y = rand() % gridSize;
-		} while (grid[temp_x][temp_y] == OCCUPIED);
-
-		int father = rand() % n_best;
-		int mother = rand() % n_best;
-
-		if (father == mother) {
-			int mother = (mother == 0) ? mother + 1 : mother - 1;
+void genocide(int survivor_index){
+	printf("entrando no genocidio. Index is %d, pop_size is %d\n", survivor_index, pop_size);
+	for(int i = 0; i < pop_size; i++){
+		if(i != survivor_index){
+			//population[i].network.killNetwork();
+			population[i].network.copyNetwork(population[survivor_index].network);
+			printf("copiou a rede\n");
+			population[i].network.mutate(getCurrentTimeInSeconds()+i, 0.05, 0.2);
 		}
-
-		mutation_range = 0.5 * ((float)(pop_outputs.at(father).second +
-										pop_outputs.at(mother).second) /
-								(float)(2 * generation_duration)) +
-						 0.1;
-
-		new_population[counter].line = temp_x;
-		new_population[counter].column = temp_y;
+		int temp_x, temp_y;
+		do {
+			temp_x = rand() % gridSize;
+			temp_y = rand() % gridSize;
+		} while (grid[temp_x][temp_y] == OCCUPIED);
+		population[i].line = temp_x;
+		population[i].column = temp_y;
 		grid[temp_x][temp_y] = OCCUPIED;
-		new_population[counter].network =
-			reproduce(population[pop_outputs.at(father).first].network,
-					  population[pop_outputs.at(mother).first].network, NEURONS,
-					  mode, true, rand(), mutation_range, mutation_chance);
-		new_population[counter].alive = true;
-		new_population[counter].survival_time = 0;
-		new_population[counter].n_dodges = 0;
-		//printf("gerando individuo %d\n", counter);
-		counter++;
+		population[i].alive = true;
+		population[i].n_dodges = 0;
+		population[i].survival_time = 0;
+		
 	}
-
-	alive_pop = counter;
-
-	// kill previous generation
-	for (int i = 0; i < pop_size; i++) {
-		//printf("killing network %d of %d\n", i, pop_size);
-		population[i].network.killNetwork();
-	}
-
-	//printf("dando free\n");
-	free(population);
-
-	population = new_population;
+	printf("saiundo do genocidio\n");
 }
 
-void walrusBreed()
+void elitistBreed()
 {
-	printf("entrando no walrus breed\n");
+	//printf("entrando no elitist breed\n");
+	/*if(population[pop_outputs.at(0).first].alive){
+		printf("cometendo genocidio\n");
+		genocide(pop_outputs.at(0).first);
+		alive_pop = pop_size;
+		return;
+	}*/
 	agent *new_population = (agent *)malloc(pop_size * sizeof(agent));
 
 	clearGrid();
 
-	float mutation_chance = 0.45 * ((float)alive_pop / (float)pop_size) + 0.05,
-		  mutation_range;
+	float mutation_chance, mutation_range;
 
 	int counter = 0;
-	for (int i = 0; i < pop_size; i++) {
+	for (int i = 0; i < (pop_size); i++) {
 		if (population[pop_outputs.at(i).first].n_dodges > 0) {
 			int temp_x;
 			int temp_y;
@@ -385,17 +335,27 @@ void walrusBreed()
 				temp_x = rand() % gridSize;
 				temp_y = rand() % gridSize;
 			} while (grid[temp_x][temp_y] == OCCUPIED);
-			mutation_range = 0.5 * ((float)(pop_outputs.at(0).second +
+			mutation_chance = (MAX_MUTATION_CHANCE-MIN_MUTATION_CHANCE) * 
+											(1-((float)(population[pop_outputs.at(0).first].survival_time+population[pop_outputs.at(i).first].survival_time) 
+									/ (2*(float)generation_duration))) + 
+							MIN_MUTATION_RANGE;
+			mutation_range = (MAX_MUTATION_RANGE-MIN_MUTATION_RANGE) * ((float)(pop_outputs.at(0).second +
 											pop_outputs.at(i).second) /
 									(float)(2 * generation_duration)) +
-							 0.1;
+							 MIN_MUTATION_RANGE;
 			new_population[counter].line = temp_x;
 			new_population[counter].column = temp_y;
 			grid[temp_x][temp_y] = OCCUPIED;
+			//printf("melhor:\n");
+			//population[pop_outputs.at(0).first].network.printLastLayer();
+			//printf("outro pai:\n");
+			//population[pop_outputs.at(i).first].network.printLastLayer();
 			new_population[counter].network =
 				reproduce(population[pop_outputs.at(0).first].network,
 						  population[pop_outputs.at(i).first].network, NEURONS,
 						  mode, true, rand(), mutation_range, mutation_chance);
+			//printf("filho:\n");
+			//new_population[counter].network.printLastLayer();
 			new_population[counter].alive = true;
 			new_population[counter].survival_time = 0;
 			new_population[counter].prev_pos = 0;
@@ -429,7 +389,109 @@ void walrusBreed()
 	free(population);
 
 	population = new_population;
-	printf("saindo do Walrus breed\n");
+	//printf("saindo do elitist breed\n");
+}
+
+void nBestBreed()
+{
+	//printf("Entrou em nBestBreed\n");
+	agent *new_population = (agent *)malloc(pop_size * sizeof(agent));
+
+	clearGrid();
+
+	float mutation_chance = (MAX_MUTATION_CHANCE-MIN_MUTATION_CHANCE) * ((float)alive_pop / (float)pop_size) + MIN_MUTATION_CHANCE,
+		  mutation_range;
+
+	int counter = 0;
+	//printf("n best: %d\n", n_best);
+	for (int i = 0; i < pop_size; i++) {
+		//printf("counter: %d\n", counter);
+		// Add the result to the new list
+		int temp_x;
+		int temp_y;
+		do {
+			temp_x = rand() % gridSize;
+			temp_y = rand() % gridSize;
+		} while (grid[temp_x][temp_y] == OCCUPIED);
+
+		int father = rand() % n_best;
+		int mother = rand() % n_best;
+
+		if (father == mother) {
+			int mother = (mother == 0) ? mother + 1 : mother - 1;
+		}
+		mutation_chance = (MAX_MUTATION_CHANCE-MIN_MUTATION_CHANCE) * 
+											(1-((float)(population[pop_outputs.at(father).first].survival_time+population[pop_outputs.at(mother).first].survival_time) 
+									/ (2*(float)generation_duration))) + 
+							MIN_MUTATION_RANGE;
+			
+		mutation_range = (MAX_MUTATION_RANGE-MIN_MUTATION_RANGE) * ((float)(pop_outputs.at(father).second +
+										pop_outputs.at(mother).second) /
+								(float)(2 * generation_duration)) +
+						 MIN_MUTATION_RANGE;
+
+		new_population[counter].line = temp_x;
+		new_population[counter].column = temp_y;
+		grid[temp_x][temp_y] = OCCUPIED;
+		new_population[counter].network =
+			reproduce(population[pop_outputs.at(father).first].network,
+					  population[pop_outputs.at(mother).first].network, NEURONS,
+					  mode, true, rand(), mutation_range, mutation_chance);
+		new_population[counter].alive = true;
+		new_population[counter].survival_time = 0;
+		new_population[counter].n_dodges = 0;
+		//printf("gerando individuo %d\n", counter);
+		counter++;
+	}
+
+	alive_pop = counter;
+
+	// kill previous generation
+	for (int i = 0; i < pop_size; i++) {
+		//printf("killing network %d of %d\n", i, pop_size);
+		population[i].network.killNetwork();
+	}
+
+	//printf("dando free\n");
+	free(population);
+
+	population = new_population;
+}
+
+void assexualReproduction()
+{
+	clearGrid();
+
+	float mutation_chance = (MAX_MUTATION_CHANCE-MIN_MUTATION_CHANCE) * ((float)alive_pop / (float)pop_size) + MIN_MUTATION_CHANCE,
+		  mutation_range;
+
+	int counter = 0;
+	for (int i = 0; i < pop_size; i++) {
+		//printf("counter: %d\n", counter);
+		// Add the result to the new list
+		int temp_x;
+		int temp_y;
+		do {
+			temp_x = rand() % gridSize;
+			temp_y = rand() % gridSize;
+		} while (grid[temp_x][temp_y] == OCCUPIED);
+
+		mutation_range = (MAX_MUTATION_RANGE-MIN_MUTATION_RANGE) * (float)(pop_outputs.at(counter).second /
+									   (float)(generation_duration)) +
+						 MIN_MUTATION_RANGE;
+
+		population[counter].line = temp_x;
+		population[counter].column = temp_y;
+		grid[temp_x][temp_y] = OCCUPIED;
+		population[counter].network.mutate(rand(), mutation_range,
+										   mutation_chance);
+		population[counter].alive = true;
+		population[counter].survival_time = 0;
+		population[counter].n_dodges = 0;
+		//printf("gerando individuo %d\n", counter);
+		counter++;
+	}
+	alive_pop = counter;
 }
 
 void updateGrid(bean a_bean)
@@ -583,7 +645,7 @@ void print_csv()
 	fprintf(csv, "generation,score,time,n dodges\n");
 
 	for (int i = 0; i < max_generations; i++) {
-		fprintf(csv, "%d,%f,%d,%d\n", i, best_score_of_n[i], best_time_of_n[i], best_dodges_of_n[i]);
+		fprintf(csv, "%d,%d,%f,%d,%d\n", i, alive_to_the_end[i], best_score_of_n[i], best_time_of_n[i], best_dodges_of_n[i]);
 	}
 
 	fclose(csv);
@@ -694,7 +756,8 @@ void getGridData(float *destiny, int i_agent, int j_agent)
 	} else {
 		destiny[4] = grid[i_agent][j_agent - 1];
 	}
-	destiny[5] = grid[i_agent][j_agent - 1];
+	destiny[5] = grid[i_agent][j_agent];
+	//printf("data do quadrado: %f\n", destiny[5]);
 }
 
 void movePlayer(int i)
@@ -754,8 +817,8 @@ void movePlayer(int i)
 void breed()
 {
 	switch (breeding_type) {
-	case WALRUS:
-		walrusBreed();
+	case ELITIST:
+		elitistBreed();
 		break;
 	case N_BEST:
 		nBestBreed();
@@ -765,7 +828,7 @@ void breed()
 		break;
 	default:
 		std::cout
-			<< "Escolha um tipo válido de cruzamento: WALRUS = 0, N_BEST = 1, ASSEXUAL = 2\n";
+			<< "Escolha um tipo válido de cruzamento: ELITIST = 0, N_BEST = 1, ASSEXUAL = 2\n";
 		std::cin >> breeding_type;
 		breed();
 	}
@@ -801,7 +864,11 @@ void simulation(int)
 		if (generation_counter >= generation_duration || alive_pop == 0) {
 			//printf("Entrou no if generation\n");
 			n_generations++;
-			checkBest();
+			bool use_time = false;
+			if(alive_pop > 0)
+				use_time = true;
+			checkBest(use_time);
+			
 			if (n_generations > max_generations) {
 				running = false;
 			} else {

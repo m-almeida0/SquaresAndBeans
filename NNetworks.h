@@ -85,6 +85,7 @@ public:
 	//TODO: implementar reproducao assexuada
 	//TODO: melhorar a mutacao implementando mutacao padrao
 	void killNetwork();
+	void printLastLayer();
 };
 
 Network reproduce(Network P1, Network P2, int chromosome, int mode, bool mutate,
