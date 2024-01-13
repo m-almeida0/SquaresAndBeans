@@ -1,3 +1,4 @@
+#include <random>
 #ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
@@ -144,22 +145,22 @@ int main(int argc, char *argv[])
 	}
 	alive_pop = pop_size;
 
-	if (breeding_type == N_BEST){
-		n_best = 0.4*pop_size;
-	}
-	/*if (pop_size < 15 && breeding_type == N_BEST) {
-		while (pop_size < 15) {
+	//if (breeding_type == N_BEST){
+	//	n_best = 0.4*pop_size;
+	//}
+	if (pop_size < 20 && breeding_type == N_BEST) {
+		while (pop_size < 20) {
 			std::cout
-				<< "População muito pequena, insira um valor maior ou igual a 15\n";
+				<< "População muito pequena, insira um valor maior ou igual a 20\n";
 			std::cin >> pop_size;
 		}
 	} else if (pop_size < 100) {
-		n_best = 3;
+		n_best = pop_size / 4;
 	} else if (pop_size < 1000) {
-		n_best = 5;
+		n_best = pop_size / 5;
 	} else {
-		n_best = 7;
-	}*/
+		n_best = pop_size / 8;
+	}
 
 	population = (agent *)malloc(pop_size * sizeof(agent));
 	best_score_of_n = (float *)malloc(max_generations * sizeof(float));
@@ -240,42 +241,82 @@ void keyboard(unsigned char key, int x, int y)
 void checkBest(bool time)
 {
 	pop_outputs.clear();
+	std::vector<std::pair<int, float> > pop_alive;
 
-	if(time){
+	if (time) {
 		for (int i = 0; i < pop_size; i++) {
-			pop_outputs.push_back(std::make_pair(i, (float)population[i].survival_time));
-			/*pop_outputs.push_back(
-				std::make_pair(i, (float)population[i].survival_time *
-									  (float)population[i].n_dodges/ (float) generation_duration));
-			//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
-			*/
+			// if we are considering the agents which are still alive as the best
+			// agents, then we must save them in a separate vector first
+			if (population[i].alive) {
+				pop_alive.push_back(
+					std::make_pair(i, ((float)population[i].survival_time *
+									   (float)population[i].n_dodges) /
+										  (float)generation_duration));
+			} else {
+				pop_outputs.push_back(
+					std::make_pair(i, ((float)population[i].survival_time *
+									   (float)population[i].n_dodges) /
+										  (float)generation_duration));
+
+				//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
+			}
 		}
-	}else{
+		// We will sort both vectors and then add the vector of the agents who
+		// are still alive to the beggining of the pop_outputs vector
+		std::sort(pop_alive.begin(), pop_alive.end(),
+				  [](const auto &lhs, const auto &rhs) {
+					  return lhs.second > rhs.second;
+				  });
+
+		std::sort(pop_outputs.begin(), pop_outputs.end(),
+				  [](const auto &lhs, const auto &rhs) {
+					  return lhs.second > rhs.second;
+				  });
+
+		for (int i = pop_alive.size() - 1; i >= 0; i--) {
+			std::vector<std::pair<int, float> >::iterator it;
+			it = pop_outputs.begin();
+			pop_outputs.insert(it, pop_alive.at(i));
+		}
+	} else {
 		for (int i = 0; i < pop_size; i++) {
 			pop_outputs.push_back(
-				std::make_pair(i, (float)population[i].survival_time *
-									  (float)population[i].n_dodges/ (float) generation_duration));
+				std::make_pair(i, ((float)population[i].survival_time *
+								   (float)population[i].n_dodges) /
+									  (float)generation_duration));
 			//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
 		}
-	}
-	std::sort(pop_outputs.begin(), pop_outputs.end(),
-			  [](const auto &lhs, const auto &rhs) {
-				  return lhs.second > rhs.second;
-			  });
 
-	printf(
-		"generation %d: survivors = %d, best: survival time = %d, n_dodges = %d, score = %lf \n",
-		n_generations, alive_pop, population[pop_outputs.at(0).first].survival_time,
-		population[pop_outputs.at(0).first].n_dodges, pop_outputs.at(0).second);
-	best_score_of_n[n_generations - 1] = pop_outputs.at(0).second;
-	best_time_of_n[n_generations - 1] = population[pop_outputs.at(0).first].survival_time;
-	best_dodges_of_n[n_generations - 1] = population[pop_outputs.at(0).first].n_dodges;
+		std::sort(pop_outputs.begin(), pop_outputs.end(),
+				  [](const auto &lhs, const auto &rhs) {
+					  return lhs.second > rhs.second;
+				  });
+	}
+
+	float best_score =
+		((float)population[pop_outputs.at(0).first].survival_time *
+		 (float)population[pop_outputs.at(0).first].n_dodges) /
+		(float)generation_duration;
+
+	printf("gen %d: alive = %d, best: time = %d, n dodges = %d, score = %lf \n",
+		   n_generations, alive_pop,
+		   population[pop_outputs.at(0).first].survival_time,
+		   population[pop_outputs.at(0).first].n_dodges, best_score);
+
+	best_score_of_n[n_generations - 1] = best_score;
+
+	best_time_of_n[n_generations - 1] =
+		population[pop_outputs.at(0).first].survival_time;
+
+	best_dodges_of_n[n_generations - 1] =
+		population[pop_outputs.at(0).first].n_dodges;
+
 	alive_to_the_end[n_generations - 1] = alive_pop;
 
 	//printf("best of all: survival time: %d, n dodges: %d\n", bestOfAll.survival_time);
 
 	if (((float)(bestOfAll.survival_time * bestOfAll.n_dodges) /
-		 (float)generation_duration) < pop_outputs.at(0).second) {
+		 (float)generation_duration) < best_score) {
 		//printf("Entrou best of all\n");
 		bestOfAll = population[pop_outputs.at(0).first];
 		//printf("popoutputs: %d\n", pop_outputs.at(0).first);
@@ -286,14 +327,18 @@ void checkBest(bool time)
 	}
 }
 
-void genocide(int survivor_index){
-	printf("entrando no genocidio. Index is %d, pop_size is %d\n", survivor_index, pop_size);
-	for(int i = 0; i < pop_size; i++){
-		if(i != survivor_index){
+void genocide(int survivor_index)
+{
+	printf("entrando no genocidio. Index is %d, pop_size is %d\n",
+		   survivor_index, pop_size);
+	for (int i = 0; i < pop_size; i++) {
+		if (i != survivor_index) {
 			//population[i].network.killNetwork();
-			population[i].network.copyNetwork(population[survivor_index].network);
+			population[i].network.copyNetwork(
+				population[survivor_index].network);
 			printf("copiou a rede\n");
-			population[i].network.mutate(getCurrentTimeInSeconds()+i, 0.05, 0.2);
+			population[i].network.mutate(getCurrentTimeInSeconds() + i, 0.05,
+										 0.2);
 		}
 		int temp_x, temp_y;
 		do {
@@ -306,7 +351,6 @@ void genocide(int survivor_index){
 		population[i].alive = true;
 		population[i].n_dodges = 0;
 		population[i].survival_time = 0;
-		
 	}
 	printf("saiundo do genocidio\n");
 }
@@ -335,14 +379,22 @@ void elitistBreed()
 				temp_x = rand() % gridSize;
 				temp_y = rand() % gridSize;
 			} while (grid[temp_x][temp_y] == OCCUPIED);
-			mutation_chance = (MAX_MUTATION_CHANCE-MIN_MUTATION_CHANCE) * 
-											(1-((float)(population[pop_outputs.at(0).first].survival_time+population[pop_outputs.at(i).first].survival_time) 
-									/ (2*(float)generation_duration))) + 
-							MIN_MUTATION_RANGE;
-			mutation_range = (MAX_MUTATION_RANGE-MIN_MUTATION_RANGE) * ((float)(pop_outputs.at(0).second +
-											pop_outputs.at(i).second) /
-									(float)(2 * generation_duration)) +
-							 MIN_MUTATION_RANGE;
+
+			mutation_chance =
+				(MAX_MUTATION_CHANCE - MIN_MUTATION_CHANCE) *
+					(1 -
+					 ((float)(population[pop_outputs.at(0).first].survival_time +
+							  population[pop_outputs.at(i).first].survival_time) /
+					  (float)(2 * generation_duration))) +
+				MIN_MUTATION_RANGE;
+
+			mutation_range =
+				(MAX_MUTATION_RANGE - MIN_MUTATION_RANGE) *
+					((float)(population[pop_outputs.at(0).first].survival_time +
+							 population[pop_outputs.at(i).first].survival_time) /
+					 (float)(2 * generation_duration)) +
+				MIN_MUTATION_RANGE;
+
 			new_population[counter].line = temp_x;
 			new_population[counter].column = temp_y;
 			grid[temp_x][temp_y] = OCCUPIED;
@@ -352,7 +404,7 @@ void elitistBreed()
 			//population[pop_outputs.at(i).first].network.printLastLayer();
 			new_population[counter].network =
 				reproduce(population[pop_outputs.at(0).first].network,
-						  population[pop_outputs.at(i).first].network, NEURONS,
+						  population[pop_outputs.at(i).first].network, LAYERS,
 						  mode, true, rand(), mutation_range, mutation_chance);
 			//printf("filho:\n");
 			//new_population[counter].network.printLastLayer();
@@ -399,8 +451,11 @@ void nBestBreed()
 
 	clearGrid();
 
-	float mutation_chance = (MAX_MUTATION_CHANCE-MIN_MUTATION_CHANCE) * ((float)alive_pop / (float)pop_size) + MIN_MUTATION_CHANCE,
-		  mutation_range;
+	float mutation_chance, mutation_range;
+
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<> dis(0, n_best - 1);
 
 	int counter = 0;
 	//printf("n best: %d\n", n_best);
@@ -414,28 +469,35 @@ void nBestBreed()
 			temp_y = rand() % gridSize;
 		} while (grid[temp_x][temp_y] == OCCUPIED);
 
-		int father = rand() % n_best;
-		int mother = rand() % n_best;
+		int father = dis(gen);
+		int mother = dis(gen);
 
 		if (father == mother) {
-			int mother = (mother == 0) ? mother + 1 : mother - 1;
+			mother = dis(gen);
 		}
-		mutation_chance = (MAX_MUTATION_CHANCE-MIN_MUTATION_CHANCE) * 
-											(1-((float)(population[pop_outputs.at(father).first].survival_time+population[pop_outputs.at(mother).first].survival_time) 
-									/ (2*(float)generation_duration))) + 
-							MIN_MUTATION_RANGE;
-			
-		mutation_range = (MAX_MUTATION_RANGE-MIN_MUTATION_RANGE) * ((float)(pop_outputs.at(father).second +
-										pop_outputs.at(mother).second) /
-								(float)(2 * generation_duration)) +
-						 MIN_MUTATION_RANGE;
+
+		mutation_chance =
+			(MAX_MUTATION_CHANCE - MIN_MUTATION_CHANCE) *
+				(1 - ((float)(population[pop_outputs.at(father).first]
+								  .survival_time +
+							  population[pop_outputs.at(mother).first]
+								  .survival_time) /
+					  (float)(2 * generation_duration))) +
+			MIN_MUTATION_RANGE;
+
+		mutation_range =
+			(MAX_MUTATION_RANGE - MIN_MUTATION_RANGE) *
+				((float)(population[pop_outputs.at(father).first].survival_time +
+						 population[pop_outputs.at(mother).first].survival_time) /
+				 (float)(2 * generation_duration)) +
+			MIN_MUTATION_RANGE;
 
 		new_population[counter].line = temp_x;
 		new_population[counter].column = temp_y;
 		grid[temp_x][temp_y] = OCCUPIED;
 		new_population[counter].network =
 			reproduce(population[pop_outputs.at(father).first].network,
-					  population[pop_outputs.at(mother).first].network, NEURONS,
+					  population[pop_outputs.at(mother).first].network, LAYERS,
 					  mode, true, rand(), mutation_range, mutation_chance);
 		new_population[counter].alive = true;
 		new_population[counter].survival_time = 0;
@@ -462,7 +524,9 @@ void assexualReproduction()
 {
 	clearGrid();
 
-	float mutation_chance = (MAX_MUTATION_CHANCE-MIN_MUTATION_CHANCE) * ((float)alive_pop / (float)pop_size) + MIN_MUTATION_CHANCE,
+	float mutation_chance = (MAX_MUTATION_CHANCE - MIN_MUTATION_CHANCE) *
+								((float)alive_pop / (float)pop_size) +
+							MIN_MUTATION_CHANCE,
 		  mutation_range;
 
 	int counter = 0;
@@ -476,9 +540,11 @@ void assexualReproduction()
 			temp_y = rand() % gridSize;
 		} while (grid[temp_x][temp_y] == OCCUPIED);
 
-		mutation_range = (MAX_MUTATION_RANGE-MIN_MUTATION_RANGE) * (float)(pop_outputs.at(counter).second /
-									   (float)(generation_duration)) +
-						 MIN_MUTATION_RANGE;
+		mutation_range =
+			(MAX_MUTATION_RANGE - MIN_MUTATION_RANGE) *
+				((float)population[pop_outputs.at(counter).first].survival_time /
+				 (float)generation_duration) +
+			MIN_MUTATION_RANGE;
 
 		population[counter].line = temp_x;
 		population[counter].column = temp_y;
@@ -645,7 +711,8 @@ void print_csv()
 	fprintf(csv, "generation,score,time,n dodges\n");
 
 	for (int i = 0; i < max_generations; i++) {
-		fprintf(csv, "%d,%d,%f,%d,%d\n", i, alive_to_the_end[i], best_score_of_n[i], best_time_of_n[i], best_dodges_of_n[i]);
+		fprintf(csv, "%d,%f,%d,%d\n", i, best_score_of_n[i], best_time_of_n[i],
+				best_dodges_of_n[i]);
 	}
 
 	fclose(csv);
@@ -699,7 +766,7 @@ void draw()
 
 		if (print_once) {
 			print_csv();
-			std::cout << "Use \"make plot\" to plot the simulation data\n"; 
+			std::cout << "Use \"make plot\" to plot the simulation data\n";
 		}
 
 		//sleep(10000);
@@ -865,10 +932,11 @@ void simulation(int)
 			//printf("Entrou no if generation\n");
 			n_generations++;
 			bool use_time = false;
-			if(alive_pop > 0)
+			if (alive_pop > 0) {
 				use_time = true;
+			}
 			checkBest(use_time);
-			
+
 			if (n_generations > max_generations) {
 				running = false;
 			} else {
