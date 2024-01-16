@@ -88,6 +88,7 @@ int generation_duration;
 int n_generations = 0;
 int n_best = 0; // number of elements to use on breedNBest
 std::vector<std::pair<int, float> > pop_outputs;
+std::vector<std::pair<int, float> > pop_alive;
 agent bestOfAll;
 
 int mode;
@@ -241,7 +242,6 @@ void keyboard(unsigned char key, int x, int y)
 void checkBest(bool time)
 {
 	pop_outputs.clear();
-	std::vector<std::pair<int, float> > pop_alive;
 
 	if (time) {
 		for (int i = 0; i < pop_size; i++) {
@@ -337,7 +337,7 @@ void genocide(int survivor_index)
 			population[i].network.copyNetwork(
 				population[survivor_index].network);
 			printf("copiou a rede\n");
-			population[i].network.mutate(getCurrentTimeInSeconds() + i, 0.05,
+			population[i].network.mutate(rand() + i, 0.05,
 										 0.2);
 		}
 		int temp_x, temp_y;
@@ -371,15 +371,19 @@ void elitistBreed()
 	float mutation_chance, mutation_range;
 
 	int counter = 0;
-	for (int i = 0; i < (pop_size); i++) {
-		if (population[pop_outputs.at(i).first].n_dodges > 0) {
-			int temp_x;
-			int temp_y;
-			do {
-				temp_x = rand() % gridSize;
-				temp_y = rand() % gridSize;
-			} while (grid[temp_x][temp_y] == OCCUPIED);
+	for (int i = 0; i < (pop_size - alive_pop); i++) {
+		int temp_x;
+		int temp_y;
+		do {
+			temp_x = rand() % gridSize;
+			temp_y = rand() % gridSize;
+		} while (grid[temp_x][temp_y] == OCCUPIED);
 
+		new_population[counter].line = temp_x;
+		new_population[counter].column = temp_y;
+		grid[temp_x][temp_y] = OCCUPIED;
+
+		if (population[pop_outputs.at(i).first].n_dodges > 0) {
 			mutation_chance =
 				(MAX_MUTATION_CHANCE - MIN_MUTATION_CHANCE) *
 					(1 -
@@ -394,10 +398,6 @@ void elitistBreed()
 							 population[pop_outputs.at(i).first].survival_time) /
 					 (float)(2 * generation_duration)) +
 				MIN_MUTATION_RANGE;
-
-			new_population[counter].line = temp_x;
-			new_population[counter].column = temp_y;
-			grid[temp_x][temp_y] = OCCUPIED;
 			//printf("melhor:\n");
 			//population[pop_outputs.at(0).first].network.printLastLayer();
 			//printf("outro pai:\n");
@@ -408,28 +408,41 @@ void elitistBreed()
 						  mode, true, rand(), mutation_range, mutation_chance);
 			//printf("filho:\n");
 			//new_population[counter].network.printLastLayer();
-			new_population[counter].alive = true;
-			new_population[counter].survival_time = 0;
-			new_population[counter].prev_pos = 0;
-			new_population[counter].n_dodges = 0;
 		} else {
-			int temp_x;
-			int temp_y;
-			do {
-				temp_x = rand() % gridSize;
-				temp_y = rand() % gridSize;
-			} while (grid[temp_x][temp_y] == OCCUPIED);
-			new_population[counter].line = temp_x;
-			new_population[counter].column = temp_y;
-			grid[temp_x][temp_y] = OCCUPIED;
 			new_population[counter].network =
 				Network(n_layers, n_inputs, n_per_l, true, rand());
-			new_population[counter].alive = true;
-			new_population[counter].survival_time = 0;
-			new_population[counter].prev_pos = 0;
-			new_population[counter].n_dodges = 0;
 		}
+
+		new_population[counter].alive = true;
+		new_population[counter].survival_time = 0;
+		new_population[counter].prev_pos = 0;
+		new_population[counter].n_dodges = 0;
+
 		counter++;
+	}
+
+	// Adding the alive agents from the last generation to the new one
+	int idx = 0;
+
+	for (int i = counter; i < pop_size; i++) {
+		int temp_x;
+		int temp_y;
+		do {
+			temp_x = rand() % gridSize;
+			temp_y = rand() % gridSize;
+		} while (grid[temp_x][temp_y] == OCCUPIED);
+
+		new_population[counter].line = temp_x;
+		new_population[counter].column = temp_y;
+		grid[temp_x][temp_y] = OCCUPIED;
+		new_population[counter].network =
+			population[pop_alive[idx].first].network;
+		new_population[counter].alive = true;
+		new_population[counter].survival_time = 0;
+		new_population[counter].n_dodges = 0;
+
+		counter++;
+		idx++;
 	}
 
 	alive_pop = counter;
@@ -459,7 +472,7 @@ void nBestBreed()
 
 	int counter = 0;
 	//printf("n best: %d\n", n_best);
-	for (int i = 0; i < pop_size; i++) {
+	for (int i = 0; i < (pop_size - alive_pop); i++) {
 		//printf("counter: %d\n", counter);
 		// Add the result to the new list
 		int temp_x;
@@ -504,6 +517,30 @@ void nBestBreed()
 		new_population[counter].n_dodges = 0;
 		//printf("gerando individuo %d\n", counter);
 		counter++;
+	}
+
+	// Adding the alive agents from the last generation to the new one
+	int idx = 0;
+
+	for (int i = counter; i < pop_size; i++) {
+		int temp_x;
+		int temp_y;
+		do {
+			temp_x = rand() % gridSize;
+			temp_y = rand() % gridSize;
+		} while (grid[temp_x][temp_y] == OCCUPIED);
+
+		new_population[counter].line = temp_x;
+		new_population[counter].column = temp_y;
+		grid[temp_x][temp_y] = OCCUPIED;
+		new_population[counter].network =
+			population[pop_alive[idx].first].network;
+		new_population[counter].alive = true;
+		new_population[counter].survival_time = 0;
+		new_population[counter].n_dodges = 0;
+
+		counter++;
+		idx++;
 	}
 
 	alive_pop = counter;
