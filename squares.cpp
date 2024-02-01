@@ -432,7 +432,7 @@ void elitistBreed()
 			//population[pop_outputs.at(i).first].network.printLastLayer();
 			new_population[counter].network =
 				reproduce(population[pop_outputs.at(0).first].network,
-						  population[pop_outputs.at(i).first].network, LAYERS,
+						  population[pop_outputs.at(i).first].network, NEURONS,
 						  mode, true, rand(), mutation_range, mutation_chance);
 			//printf("filho:\n");
 			//new_population[counter].network.printLastLayer();
@@ -513,7 +513,7 @@ void nBestBreed()
 		int father = dis(gen);
 		int mother = dis(gen);
 
-		if (father == mother) {
+		while (father == mother) {
 			mother = dis(gen);
 		}
 
@@ -538,7 +538,7 @@ void nBestBreed()
 		grid[temp_x][temp_y] = OCCUPIED;
 		new_population[counter].network =
 			reproduce(population[pop_outputs.at(father).first].network,
-					  population[pop_outputs.at(mother).first].network, LAYERS,
+					  population[pop_outputs.at(mother).first].network, NEURONS,
 					  mode, true, rand(), mutation_range, mutation_chance);
 		new_population[counter].alive = true;
 		new_population[counter].survival_time = 0;

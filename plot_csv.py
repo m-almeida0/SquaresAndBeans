@@ -19,12 +19,12 @@ with open("csv.out") as csvfile:
         scores.append(float(row["score"]))
         survival_times.append(float(row["time"]))
         n_dodges.append(int(row["n dodges"]))
-        av_time.append(int(row["av time"]))
-        av_dodge.append(int(row["av dodge"]))
-        av_score.append(int(row["av score"]))
+        av_time.append(float(row["av time"]))
+        av_dodge.append(float(row["av dodge"]))
+        av_score.append(float(row["av score"]))
 
 # Create a figure with 3 rows and 1 column of subplots
-fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(6, 1, figsize=(8, 6))
+fig, ((ax1, ax4), (ax2, ax5), (ax3, ax6)) = plt.subplots(3, 2, figsize=(11, 6))
 
 # Plot each graph on its respective subplot
 ax1.plot(generations, scores, color='skyblue', linestyle='-', label='Score')
