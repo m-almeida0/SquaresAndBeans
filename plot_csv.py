@@ -7,6 +7,9 @@ generations = []
 scores = []
 survival_times = []
 n_dodges = []
+av_time = []
+av_dodge = []
+av_score = []
 
 # Read data from CSV file
 with open("csv.out") as csvfile:
@@ -16,9 +19,12 @@ with open("csv.out") as csvfile:
         scores.append(float(row["score"]))
         survival_times.append(float(row["time"]))
         n_dodges.append(int(row["n dodges"]))
+        av_time.append(int(row["av time"]))
+        av_dodge.append(int(row["av dodge"]))
+        av_score.append(int(row["av score"]))
 
 # Create a figure with 3 rows and 1 column of subplots
-fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(8, 6))
+fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(6, 1, figsize=(8, 6))
 
 # Plot each graph on its respective subplot
 ax1.plot(generations, scores, color='skyblue', linestyle='-', label='Score')
@@ -41,6 +47,27 @@ ax3.set_ylabel("N Dodges")
 ax3.set_title("Generation vs. N Dodges")
 ax3.legend()
 ax3.grid(True)
+
+ax4.plot(generations, av_score, color='skyblue', linestyle='-', label='Av Score')
+ax4.set_xlabel("Generation")
+ax4.set_ylabel("Av Score")
+ax4.set_title("Generation vs. Av Score")
+ax4.legend()
+ax4.grid(True)
+
+ax5.plot(generations, av_time, color='orange', linestyle='-', label='Av Time')
+ax5.set_xlabel("Generation")
+ax5.set_ylabel("Av Time")
+ax5.set_title("Generation vs. Av Time")
+ax5.legend()
+ax5.grid(True)
+
+ax6.plot(generations, av_dodge, color='green', linestyle='-', label='Av Dodge')
+ax6.set_xlabel("Generation")
+ax6.set_ylabel("Av Dodge")
+ax6.set_title("Generation vs. Av Dodge")
+ax6.legend()
+ax6.grid(True)
 
 # Adjust spacing between subplots
 plt.tight_layout()

@@ -102,6 +102,9 @@ float *best_score_of_n;
 int *best_time_of_n;
 int *best_dodges_of_n;
 int *alive_to_the_end;
+float *average_time;
+float *average_dodge;
+float *average_score;
 bool running;
 int n_inputs = 6, n_layers = 1, n_per_l[1] = { 4 };
 int breeding_type = 0;
@@ -164,6 +167,9 @@ int main(int argc, char *argv[])
 	}
 
 	population = (agent *)malloc(pop_size * sizeof(agent));
+	average_time = (float *)malloc(max_generations * sizeof(float));
+	average_dodge = (float *)malloc(max_generations * sizeof(float));
+	average_score = (float *)malloc(max_generations * sizeof(float));
 	best_score_of_n = (float *)malloc(max_generations * sizeof(float));
 	best_time_of_n = (int *)malloc(max_generations * sizeof(int));
 	best_dodges_of_n = (int *)malloc(max_generations * sizeof(int));
@@ -243,6 +249,10 @@ void checkBest(bool time)
 {
 	pop_outputs.clear();
 
+	float average_time_value = 0;
+	float average_dodge_value = 0;
+	float average_score_value = 0;
+
 	if (time) {
 		for (int i = 0; i < pop_size; i++) {
 			// if we are considering the agents which are still alive as the best
@@ -260,6 +270,11 @@ void checkBest(bool time)
 
 				//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
 			}
+			average_time_value += (float)population[i].survival_time;
+			average_dodge_value += (float)population[i].n_dodges;
+			average_score_value += ((float)population[i].survival_time *
+									(float)population[i].n_dodges) /
+								   (float)generation_duration;
 		}
 		// We will sort both vectors and then add the vector of the agents who
 		// are still alive to the beggining of the pop_outputs vector
@@ -278,6 +293,7 @@ void checkBest(bool time)
 			it = pop_outputs.begin();
 			pop_outputs.insert(it, pop_alive.at(i));
 		}
+
 	} else {
 		for (int i = 0; i < pop_size; i++) {
 			pop_outputs.push_back(
@@ -285,6 +301,11 @@ void checkBest(bool time)
 								   (float)population[i].n_dodges) /
 									  (float)generation_duration));
 			//printf("Conferindo validade do network %d: %d\n", i, population[i].network.NNeuronsInLayerN(0));
+			average_time_value += (float)population[i].survival_time;
+			average_dodge_value += (float)population[i].n_dodges;
+			average_score_value += ((float)population[i].survival_time *
+									(float)population[i].n_dodges) /
+								   (float)generation_duration;
 		}
 
 		std::sort(pop_outputs.begin(), pop_outputs.end(),
@@ -292,6 +313,14 @@ void checkBest(bool time)
 					  return lhs.second > rhs.second;
 				  });
 	}
+
+	average_time_value /= pop_size;
+	average_dodge_value /= pop_size;
+	average_score_value /= pop_size;
+
+	average_time[n_generations - 1] = average_time_value;
+	average_dodge[n_generations - 1] = average_dodge_value;
+	average_score[n_generations - 1] = average_score_value;
 
 	float best_score =
 		((float)population[pop_outputs.at(0).first].survival_time *
@@ -337,8 +366,7 @@ void genocide(int survivor_index)
 			population[i].network.copyNetwork(
 				population[survivor_index].network);
 			printf("copiou a rede\n");
-			population[i].network.mutate(rand() + i, 0.05,
-										 0.2);
+			population[i].network.mutate(rand() + i, 0.05, 0.2);
 		}
 		int temp_x, temp_y;
 		do {
@@ -745,11 +773,12 @@ void print_csv()
 {
 	FILE *csv = fopen("csv.out", "w");
 
-	fprintf(csv, "generation,score,time,n dodges\n");
+	fprintf(csv, "generation,score,time,n dodges,av time,av dodge,av score\n");
 
 	for (int i = 0; i < max_generations; i++) {
-		fprintf(csv, "%d,%f,%d,%d\n", i, best_score_of_n[i], best_time_of_n[i],
-				best_dodges_of_n[i]);
+		fprintf(csv, "%d,%f,%d,%d,%f,%f,%f\n", i, best_score_of_n[i],
+				best_time_of_n[i], best_dodges_of_n[i], average_time[i],
+				average_dodge[i], average_score[i]);
 	}
 
 	fclose(csv);
