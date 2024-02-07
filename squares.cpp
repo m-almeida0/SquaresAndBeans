@@ -1,4 +1,5 @@
 #include <random>
+#include <string>
 #ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
@@ -33,6 +34,7 @@ char strings[5][7] = { "up", "down", "right", "left" };
 #define MIN_MUTATION_CHANCE 0.02
 #define MAX_MUTATION_RANGE 0.1
 #define MIN_MUTATION_RANGE 0.01
+#define MIN_N_BEST_POP 36
 
 int **grid;
 
@@ -78,17 +80,20 @@ float boundedRand(int seed, float min, float max)
 void draw();
 void simulation(int);
 int gridSize;
+
 int pop_size;
 float bean_delay;
 int max_beans;
 int n_beans = 0;
 unsigned int bean_index = 0;
+
 int generation_counter = 0;
 int generation_duration;
 int n_generations = 0;
 int n_best = 0; // number of elements to use on breedNBest
 std::vector<std::pair<int, float> > pop_outputs;
 std::vector<std::pair<int, float> > pop_alive;
+
 agent bestOfAll;
 
 int mode;
@@ -105,11 +110,13 @@ int *alive_to_the_end;
 float *average_time;
 float *average_dodge;
 float *average_score;
+
 bool running;
 int n_inputs = 6, n_layers = 1, n_per_l[1] = { 4 };
 int breeding_type = 0;
 
-int slow_down = 10;
+float speed = 1;
+int frame_counter = 0;
 void keyboard(unsigned char key, int x, int y);
 
 int main(int argc, char *argv[])
@@ -130,6 +137,15 @@ int main(int argc, char *argv[])
 		<< "insira o número de indivíduos, a duração de uma geração em frames e o numero de geracoes (nessa ordem, separado por epaços)\n";
 	std::cin >> pop_size >> generation_duration >> max_generations;
 
+	if (pop_size < MIN_N_BEST_POP && breeding_type == N_BEST) {
+		while (pop_size < MIN_N_BEST_POP) {
+			std::cout
+				<< "População muito pequena, insira um valor maior ou igual a "
+				<< MIN_N_BEST_POP << "\n";
+			std::cin >> pop_size;
+		}
+	}
+
 	std::cout
 		<< "insira o número de raios que você quer atingindo a população, e o número de frames até um deles matar\n";
 	std::cin >> max_beans >> bean_delay;
@@ -149,21 +165,16 @@ int main(int argc, char *argv[])
 	}
 	alive_pop = pop_size;
 
-	//if (breeding_type == N_BEST){
-	//	n_best = 0.4*pop_size;
-	//}
-	if (pop_size < 20 && breeding_type == N_BEST) {
-		while (pop_size < 20) {
-			std::cout
-				<< "População muito pequena, insira um valor maior ou igual a 20\n";
-			std::cin >> pop_size;
-		}
-	} else if (pop_size < 100) {
-		n_best = pop_size / 4;
-	} else if (pop_size < 1000) {
-		n_best = pop_size / 5;
-	} else {
+	if (pop_size <= 200) {
+		n_best = pop_size / 6;
+	} else if (pop_size <= 400) {
 		n_best = pop_size / 8;
+	} else if (pop_size <= 600) {
+		n_best = pop_size / 10;
+	} else if (pop_size <= 800) {
+		n_best = pop_size / 12;
+	} else {
+		n_best = pop_size / 14;
 	}
 
 	population = (agent *)malloc(pop_size * sizeof(agent));
@@ -228,20 +239,24 @@ int main(int argc, char *argv[])
 void keyboard(unsigned char key, int x, int y)
 {
 	switch (key) {
-	case 's':
-		if (slow_down > 10) {
-			slow_down = 10;
+	case 's': // slowdown
+		if (speed <= 0.1f) {
+			speed = 0.1f;
 		} else {
-			slow_down++;
+			speed -= 0.1;
 		}
 		break;
 
-	case 'f':
-		if (slow_down < 1) {
-			slow_down = 1;
+	case 'f': // fastforward
+		if (speed >= 8.0f) {
+			speed = 8.0f;
 		} else {
-			slow_down++;
+			speed += 0.1f;
 		}
+		break;
+
+	case 'q':
+		running = false;
 	}
 }
 
@@ -799,18 +814,33 @@ void draw()
 		for (int i = 0; i < n_beans; i++) {
 			drawBean(beans[i]);
 		}
-		glColor3f(0.6, 0.6, 1);
+
+		glColor3f(0.6, 1, 0.6);
+
 		float x = -0.9, y = 0.9;
 		glRasterPos2f(x, y);
-		std::string string = "generation: " + std::to_string(n_generations) +
-							 " alive: " + std::to_string(alive_pop);
+
+		std::string string =
+			"generation: " + std::to_string(n_generations + 1) +
+			" alive: " + std::to_string(alive_pop);
+
+		for (char c : string) {
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+		}
+
+		y = 0.84;
+		glRasterPos2f(x, y);
+
+		string = "frame: " + std::to_string(frame_counter) + " (x" +
+				 std::to_string(speed).substr(0, 3) + ")";
+
 		for (char c : string) {
 			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
 		}
 	} else {
 		int min, max;
 		if (max_generations <= 20) {
-			min = 0;
+			min = 1;
 			max = max_generations;
 		} else {
 			min = max_generations - 20;
@@ -818,12 +848,13 @@ void draw()
 		}
 		glColor3f(0.6, 0.6, 1);
 		float x = -0.9, y = 0.9;
-		for (int i = min; i < max; i++) {
+		for (int i = min; i <= max; i++) {
 			glRasterPos2f(x, y);
 			std::string end_message =
 				"in generation " + std::to_string(i) + " best is " +
-				std::to_string(best_score_of_n[i]) + " and " +
-				std::to_string(alive_to_the_end[i]) + " survived to the end";
+				std::to_string(best_score_of_n[i - 1]) + " and " +
+				std::to_string(alive_to_the_end[i - 1]) +
+				" survived to the end";
 			for (char c : end_message) {
 				glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
 			}
@@ -969,6 +1000,8 @@ void breed()
 
 void simulation(int)
 {
+	frame_counter++;
+
 	if (running) {
 		clearGrid();
 		if (n_beans < max_beans) {
@@ -996,6 +1029,7 @@ void simulation(int)
 
 		if (generation_counter >= generation_duration || alive_pop == 0) {
 			//printf("Entrou no if generation\n");
+			frame_counter = 0;
 			n_generations++;
 			bool use_time = false;
 			if (alive_pop > 0) {
@@ -1003,7 +1037,7 @@ void simulation(int)
 			}
 			checkBest(use_time);
 
-			if (n_generations > max_generations) {
+			if (n_generations >= max_generations) {
 				running = false;
 			} else {
 				breed();
@@ -1016,5 +1050,5 @@ void simulation(int)
 	}
 
 	glutPostRedisplay();
-	glutTimerFunc(4000 / 60, simulation, 0);
+	glutTimerFunc((4000.0f / 60.0f) / speed, simulation, 0);
 }
