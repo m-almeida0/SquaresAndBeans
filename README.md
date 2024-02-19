@@ -24,25 +24,35 @@ explicando como é calculado o score etc) -->
 ## Plotting the Results
 
 Use the `make plot` command to run the `plot_csv.py` script, or run it directly
-by typing the `python plot_csv.py` command. If you decide to run the script 
+by typing the `python3 plot_csv.py` command. If you decide to run the script 
 directly and you are on a Wayland system, you have to remember to set the 
 `QT_QPA_PLATFORM=wayland` environment variable beforehand.
 
-** See the `Python Dependencies` section.
-
 # Building the Application
 
-<!-- quais dependências são necessárias para compilar o código (openGL etc). 
-Também seria legal colocar os comandos para instalar em distros baseadas em 
-Ubuntu e RHEL/Fedora (já que são as mais famosas geralmente) -->
+The building process is pretty straight forward. First you'll need to clone the repository with:
 
-## C++ Dependencies
+```
+git clone https://github.com/m-almeida0/SquaresAndBeans.git
+```
+```
+cd SquaresAndBeans/
+```
 
-## Python Dependencies
+Next you'll need to download some dependencies. In the following sections we have the commands you can use on two popular GNU/Linux distributions (if you're using Windows or MacOS, well... good luck :D. You can use WSL on Windows if you want though).
 
-- matplotlib
+## Fedora
+```
+sudo dnf install make g++ freeglut-devel python3-matplotlib-qt5
+```
 
-- PyQt5
+## Ubuntu
+
+```
+sudo apt install make g++ freeglut3-dev python3-matplotlib python3-pyqt5
+```
+
+After having installed the needed dependencies, you can run `make` to build the application. In the next section, each possible `make` command is listed and explained.
 
 ## Compiling
 <!-- como compilar (o quê cada comando do make faz) -->
