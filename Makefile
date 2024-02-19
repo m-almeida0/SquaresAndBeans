@@ -21,7 +21,7 @@ clean:
 
 plot:
 ifeq ($(XDG_SESSION_TYPE),wayland)
-	QT_QPA_PLATFORM=wayland python plot_csv.py
+	QT_QPA_PLATFORM=wayland python3 plot_csv.py
 else
 	python plot_csv.py
 endif
