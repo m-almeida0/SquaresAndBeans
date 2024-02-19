@@ -9,7 +9,7 @@ como os raios funcionam, o quê o agente consegue ver etc) -->
 ## "Splicing" (Or Crossing Over)
 <!-- explicação dos diferentes tipos de "splicing" -->
 
-## The Fitness Evluation Function
+## The Fitness Evaluation Function
 <!-- explicação da função fitness 
 (como é decido que indivíduo é melhor que o outro, 
 explicando como é calculado o score etc) -->
