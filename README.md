@@ -1,25 +1,25 @@
-# The Simulation
+# The Simulation <!-- Marcos -->
 <!-- Explicação geral de como o "jogo" funciona 
 (quais são os possíveis movimentos que o agente pode fazer, 
 como os raios funcionam, o quê o agente consegue ver etc) -->
 
-## How the Reproduction Works
+## How the Reproduction Works <!-- Miguel -->
 <!-- explicação do funcionamento dos diferentes tipos de reprodução -->
 
-## "Splicing" (Or Crossing Over)
+## "Splicing" (Or Crossing Over) <!-- Marcos -->
 <!-- explicação dos diferentes tipos de "splicing" -->
 
-## The Fitness Evaluation Function
+## The Fitness Evaluation Function <!-- Miguel -->
 <!-- explicação da função fitness 
 (como é decido que indivíduo é melhor que o outro, 
 explicando como é calculado o score etc) -->
 
-## The Neural Network
+## The Neural Network <!-- Marcos -->
 <!-- Representação gráfica da Rede Neural -->
 
-# Running the Simulation
+# Running the Simulation <!-- Miguel -->
 
-## Suggested Values to Test
+## Suggested Values to Test <!-- Miguel -->
 
 ## Plotting the Results
 
@@ -28,7 +28,7 @@ by typing the `python3 plot_csv.py` command. If you decide to run the script
 directly and you are on a Wayland system, you have to remember to set the 
 `QT_QPA_PLATFORM=wayland` environment variable beforehand.
 
-You need the `matplotlib` and `PyQt5` python packages installed to be able to 
+**You need the `matplotlib` and `PyQt5` python packages installed to be able to 
 use the plot functionality. 
 
 # Building the Application

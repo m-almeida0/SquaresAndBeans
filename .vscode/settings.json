@@ -1,5 +1,16 @@
 {
     "files.associations": {
         "sstream": "cpp"
-    }
+    },
+    "spellright.language": [
+        "English (American)",
+        "Portuguese (Brazilian)",
+        "en-US-10-1."
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext",
+        "cpp"
+    ]
 }
