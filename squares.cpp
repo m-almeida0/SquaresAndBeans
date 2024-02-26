@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 	std::cin >> breeding_type;
 
 	std::cout
-		<< "insira o número de indivíduos, a duração de uma geração em frames e o numero de geracoes (nessa ordem, separado por epaços)\n";
+		<< "insira o número de indivíduos, a duração de uma geração em frames e o numero de gerações (nessa ordem, separado por espaços)\n";
 	std::cin >> pop_size >> generation_duration >> max_generations;
 
 	if (pop_size < MIN_N_BEST_POP && breeding_type == N_BEST) {
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
 	glutInitDisplayMode(GLUT_RGBA);
 	glutInitWindowSize(windowWidth, windowHeight);
 	glutInitWindowPosition(120, 120);
-	window = glutCreateWindow("simulacao");
+	window = glutCreateWindow("simulação");
 	glClearColor(0, 0, 0, 1.0);
 	glutDisplayFunc(draw);
 	glutTimerFunc(0, simulation, 0);
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
 		population[i].network.killNetwork();
 	}
 	free(population);
-	printf("deu free na populacao\n");
+	printf("deu free na população\n");
 	for (int i = 0; i < gridSize; i++) {
 		free(grid[i]);
 	}
@@ -247,7 +247,7 @@ void keyboard(unsigned char key, int x, int y)
 		}
 		break;
 
-	case 'f': // fastforward
+	case 'f': // fast-forward
 		if (speed >= 8.0f) {
 			speed = 8.0f;
 		} else {
@@ -292,7 +292,7 @@ void checkBest(bool time)
 								   (float)generation_duration;
 		}
 		// We will sort both vectors and then add the vector of the agents who
-		// are still alive to the beggining of the pop_outputs vector
+		// are still alive to the beginning of the pop_outputs vector
 		std::sort(pop_alive.begin(), pop_alive.end(),
 				  [](const auto &lhs, const auto &rhs) {
 					  return lhs.second > rhs.second;
@@ -373,7 +373,7 @@ void checkBest(bool time)
 
 void genocide(int survivor_index)
 {
-	printf("entrando no genocidio. Index is %d, pop_size is %d\n",
+	printf("entrando no genocídio. Index is %d, pop_size is %d\n",
 		   survivor_index, pop_size);
 	for (int i = 0; i < pop_size; i++) {
 		if (i != survivor_index) {
@@ -395,14 +395,14 @@ void genocide(int survivor_index)
 		population[i].n_dodges = 0;
 		population[i].survival_time = 0;
 	}
-	printf("saiundo do genocidio\n");
+	printf("saindo do genocídio\n");
 }
 
 void elitistBreed()
 {
 	//printf("entrando no elitist breed\n");
 	/*if(population[pop_outputs.at(0).first].alive){
-		printf("cometendo genocidio\n");
+		printf("cometendo genocídio\n");
 		genocide(pop_outputs.at(0).first);
 		alive_pop = pop_size;
 		return;
@@ -972,7 +972,7 @@ void movePlayer(int i)
 		if (population[i].prev_pos > population[i].new_pos) {
 			population[i].n_dodges++;
 		}
-		//printf("nova posicao [%d, %d] registrada no grid\n", population[i].line, population[i].column);
+		//printf("nova posição [%d, %d] registrada no grid\n", population[i].line, population[i].column);
 	}
 
 	population[i].survival_time++;
